@@ -1105,14 +1105,20 @@ HandleConnection(Players.PlayerAdded:Connect(PlayerESP), "PlayerESP")
 
 local MobText = "Mob: <NAME> | Health: <HEALTH>/<MAXHEALTH> (<HEALTHPERCENTAGE>%) | Distance: <DISTANCE>"
 
-local function MobESP(Mob: Model)
-	if not Mob:GetAttribute("NPC") then
-		return
-	end
-
-	ESPModel(Mob, "MobESP", MobText)
+local function RemoveNumbers(str)
+    return str:gsub("[%d.]", "") -- Удаляет все цифры и точки
 end
 
+local function MobESP(Mob: Model)
+    if not Mob:GetAttribute("NPC") then
+        return
+    end
+
+    local CleanName = RemoveNumbers(Mob.Name) -- Убираем цифры из имени
+    local CustomMobText = MobText:gsub("<NAME>", CleanName) -- Заменяем в тексте
+
+    ESPModel(Mob, "MobESP", CustomMobText)
+end
 Tab:CreateToggle({
 	Name = "🐺 • Mob ESP",
 	CurrentValue = false,
