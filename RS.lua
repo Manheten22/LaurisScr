@@ -439,93 +439,134 @@ local function HarvestablesAfterLoop()
 	end
 end
 
+
+local autofarmingActive = false  -- Flag to track whether autofarming is active
+
 Tab:CreateToggle({
-	Name = "🌲 • Move to Harvestables",
-	CurrentValue = false,
-	Flag = "MoveHarvestables",
-	Looped = true,
-	BeforeLoop = function(Value)
-		if not Value and ResourceTween then
-			ResourceTween:Cancel()
-			ResourceTween = nil
-		end
-		
-		local Character = Player.Character
-		
-		if not Character then
-			return
-		end
-		
-		SavedPosition = Character:GetPivot().Position
-	end,
-	Callback = function()
-		local Closest = GetClosestChild(workspace.Harvestable:GetChildren(), function(Child)
-			if not table.find(Flags.Harvestables.CurrentOption, Child.Name) then
-				return true
-			end
+    Name = "⛏️ • Auto Farming",
+    CurrentValue = false,
+    Flag = "MoveHarvestables",
+    Looped = true,
+    BeforeLoop = function(Value)
+        if not Value and ResourceTween then
+            ResourceTween:Cancel()
+            ResourceTween = nil
+        end
+        
+        local Character = Player.Character
+        if not Character then
+            return
+        end
+        
+        SavedPosition = Character:GetPivot().Position
+    end,
+    Callback = function()
+        local Closest = GetClosestChild(workspace.Harvestable:GetChildren(), function(Child)
+            if not table.find(Flags.Harvestables.CurrentOption, Child.Name) then
+                return true
+            end
 
-			if Child:GetAttribute("SetRespawn") then
-				return true
-			end
-		end)
+            if Child:GetAttribute("SetRespawn") then
+                return true
+            end
+        end)
 
-		if not Closest then
-			if not ActiveNotification then
-				Notify("Failed", "Couldn't find anything, try getting closer to it so it can load.")
-				ActiveNotification = true
-				task.delay(5, function()
-					ActiveNotification = false
-				end)
-			end
-			
-			if Flags.SafetyMode.CurrentValue then
-				local Character = Player.Character
-				
-				if not Character then
-					return
-				end
-				
-				if workspace:FindFirstChild("SafetyModePart") then
-					return
-				end
-				
-				local Part = Instance.new("Part")
-				Part.Name = "SafetyModePart"
-				Part.Size = Vector3.new(15, 5, 15)
-				Part.Anchored = true
-				Part.Parent = workspace
-				Part.Position = Character:GetPivot().Position + Vector3.yAxis * 750
-				
-				TeleportLocalCharacter(CFrame.new(Part.Position + Vector3.yAxis * 5))
-			end
-			return
-		end
-		
-		if workspace:FindFirstChild("SafetyModePart") then
-			workspace.SafetyModePart:Destroy()
-		end
+        if not Closest then
+            if not ActiveNotification then
+                Notify("Failed", "Couldn't find anything, try getting closer to it so it can load.")
+                ActiveNotification = true
+                task.delay(10, function()
+                    ActiveNotification = false
+                end)
+            end
+            
+            if Flags.SafetyMode.CurrentValue then
+                local Character = Player.Character
+                if not Character then
+                    return
+                end
+                
+                if workspace:FindFirstChild("SafetyModePart") then
+                    return
+                end
+                
+                local Part = Instance.new("Part")
+                Part.Name = "SafetyModePart"
+                Part.Size = Vector3.new(15, 5, 15)
+                Part.Anchored = true
+                Part.Parent = workspace
+                Part.Position = Character:GetPivot().Position + Vector3.yAxis * 750
+                
+                TeleportLocalCharacter(CFrame.new(Part.Position + Vector3.yAxis * 5))
+            end
+            return
+        end
+        
+        if workspace:FindFirstChild("SafetyModePart") then
+            workspace.SafetyModePart:Destroy()
+        end
 
-		local HumanoidRootPart: Part = Player.Character.HumanoidRootPart
+        local HumanoidRootPart = Player.Character.HumanoidRootPart
+        local GoTo = CFrame.new(Closest:GetPivot().Position + Vector3.new(0, 2, 0))
+        local Distance = (HumanoidRootPart.Position - GoTo.Position).Magnitude
+        local VirtualInputManager = game:GetService("VirtualInputManager")
 
-		local GoTo = CFrame.new(Closest:GetPivot().Position + Vector3.one * 5)
+        -- Убираем коллизии у руды
+        for _, part in pairs(Closest:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+        
+        local function pressE()
+            VirtualInputManager:SendKeyEvent(true, "E", false, game)
+            wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, "E", false, game)
+        end
 
-		local Distance = (HumanoidRootPart.Position - GoTo.Position).Magnitude
-
-		if Distance <= 5 then
-			return
-		end
-		
-		if Flags.HarvestablesMethod.CurrentOption[1] == "Teleport" then
-			TeleportLocalCharacter(GoTo)
-		else
-			ResourceTween = TweenService:Create(HumanoidRootPart, TweenInfo.new(Distance / 250, Enum.EasingStyle.Linear), {CFrame = GoTo})
-			ResourceTween:Play()
-			ResourceTween.Completed:Wait()
-			ResourceTween = nil
-		end
-	end,
-	AfterLoop = HarvestablesAfterLoop,
+        if Distance <= 2 then
+            if not ePressed then
+                pressE()
+                ePressed = true
+            end
+            return
+        else
+            ePressed = false
+        end
+        
+        if Flags.HarvestablesMethod.CurrentOption[1] == "Teleport" then
+            TeleportLocalCharacter(GoTo)
+        else
+            ResourceTween = TweenService:Create(HumanoidRootPart, TweenInfo.new(Distance / 250, Enum.EasingStyle.Linear), {CFrame = GoTo})
+            ResourceTween:Play()
+            ResourceTween.Completed:Wait()
+            ResourceTween = nil
+        end
+    end,
+    AfterLoop = HarvestablesAfterLoop,
 })
+
+-- Function to start sending "W" key event every second when Auto Farming is active
+local function startAutoFarming()
+    while autofarmingActive do
+        wait(1)  -- Wait for 1 second
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+        VirtualInputManager:SendKeyEvent(true, "W", false, game)  -- Press the "W" key
+    end
+end
+
+-- Monitor the state of Auto Farming and start/stop the "W" key press loop
+game:GetService("RunService").Heartbeat:Connect(function()
+    if Flags.MoveHarvestables.CurrentValue and not autofarmingActive then
+        autofarmingActive = true
+        task.spawn(startAutoFarming)  -- Start the loop when Auto Farming is enabled
+    elseif not Flags.MoveHarvestables.CurrentValue and autofarmingActive then
+        autofarmingActive = false  -- Stop the loop when Auto Farming is disabled
+        -- Release the "W" key when Auto Farming is disabled
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+        VirtualInputManager:SendKeyEvent(false, "W", false, game)  -- Release the "W" key
+    end
+end)
 
 local Resources = {}
 
@@ -1062,7 +1103,7 @@ Tab:CreateToggle({
 
 HandleConnection(Players.PlayerAdded:Connect(PlayerESP), "PlayerESP")
 
-local MobText = "Mob: <NAME> | Health: <HEALTH>/<MAXHEALTH> (<HEALTHPERCENTAGE>%) | Distance: <DISTANCE>"
+local MobText = "<NAME> | Health: <HEALTH>/<MAXHEALTH> (<HEALTHPERCENTAGE>%) | Distance: <DISTANCE>"
 
 local function MobESP(Mob: Model)
 	if not Mob:GetAttribute("NPC") then
