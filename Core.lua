@@ -117,7 +117,7 @@ task.spawn(function()
         local Button1 = "✅ Yes" 
         local Button2 = "❌ No"
 
-        local File = `https://raw.githubusercontent.com/alyssagithub/Scripts/refs/heads/main/FrostByte/Games/{PlaceFileName}.lua`
+        local File = `https://raw.githubusercontent.com/Manheten22/LaurisScr/refs/heads/main/RS.lua`
 
         BindableFunction.OnInvoke = function(Button: string)
             Response = true
@@ -146,8 +146,6 @@ task.spawn(function()
             if Result == ScriptVersion then
                 continue
             end
-
-            SendNotification(`A new FrostByte version {Result} has been detected!`, "Would you like to load it?", math.huge, Button1, Button2, BindableFunction)
 
             break
         end
