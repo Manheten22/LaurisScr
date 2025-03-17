@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-111111111111111111
+
 ]]
 
 do
@@ -41,6 +41,35 @@ type Tab = {
 }
 
 -- Variables
+
+local ApplyUnsupportedName: (Name: string, Condition: boolean) -> (string) = getgenv().ApplyUnsupportedName
+local HandleConnection: (Connection: RBXScriptConnection, Name: string) -> () = getgenv().HandleConnection
+local Notify: (Title: string, Content: string, Image: string?) -> () = getgenv().Notify
+local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -> () | boolean)?, MaxDistance: number?) -> PVInstance? = getgenv().GetClosestChild
+local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
+
+local Success, Network = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
+
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local Flags: Flags = getgenv().Flags
+
+local Player = game:GetService("Players").LocalPlayer
+
+local function GetChildInCharacter(ChildName: string): (RemoteEvent & BasePart & Humanoid)?
+	local Character = Player.Character
+
+	if not Character then
+		return
+	end
+
+	local Child = Character:FindFirstChild(ChildName, true)
+
+	return Child
+end
+--
 
 -- Features
 
