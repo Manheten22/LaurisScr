@@ -161,21 +161,7 @@ local Tab: Tab = Window:CreateTab("Combat", "swords")
 
 Tab:CreateSection("Attacking")
 
-Tab:CreateToggle({
-	Name = ApplyUnsupportedName("⚔ • Auto Attack", Success),
-	CurrentValue = false,
-	Flag = "Attack",
-	Looped = true,
-	Callback = function()
-		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
 
-		if not ClosestMob then
-			return
-		end
-
-		EmulateClick()
-	end,
-})
 
 Tab:CreateSection("Aiming")
 
@@ -764,40 +750,6 @@ for _, Object: Part in WorldAreas:GetChildren() do
 	table.insert(Areas, Object.Name)
 end
 
-local Dropdown
-Dropdown = Tab:CreateDropdown({
-	Name = "🌄 • Teleport to Area",
-	Options = Areas,
-	CurrentOption = "",
-	MultipleOptions = false,
-	Callback = function(CurrentOption: any)
-		CurrentOption = CurrentOption[1]
-
-		if CurrentOption == "" then
-			return
-		end
-
-		local SelectedArea: Part = WorldAreas[CurrentOption]
-
-		local Success = pcall(function()
-			local Result = workspace:Raycast(SelectedArea.Position, Vector3.yAxis * -10000)
-
-			if not Result then
-				return Notify("Failed", "Failed to raycast in this area.")
-			end
-
-			local GoTo = CFrame.new(Result.Position)
-
-			TeleportLocalCharacter(GoTo)
-		end)
-		
-		Dropdown:Set({""})
-
-		if not Success then
-			return Notify("Error", "Failed to teleport.")
-		end
-	end,
-})
 
 local NPCs = {}
 
@@ -834,29 +786,6 @@ Tab:CreateSection("Damage")
 
 local Original
 
-Tab:CreateToggle({
-	Name = ApplyUnsupportedName("🩸 • Remove Fall Damage", Success),
-	CurrentValue = false,
-	Flag = "FallDamage",
-	Callback = function(Value)
-		if not Success then
-			return
-		end
-
-		if Value then
-			Original = Network.connect
-			Network.connect = function(RemoteName, Method, Character, Settings, ...)
-				if Settings and typeof(Settings) == "table" and Settings.Config == "FallDamage" then
-					return
-				end
-
-				return Original(RemoteName, Method, Character, Settings, ...)
-			end
-		elseif Original then
-			Network.connect = Original
-		end
-	end,
-})
 
 local LavaParts = {}
 
@@ -886,32 +815,6 @@ Tab:CreateToggle({
 
 Tab:CreateSection("Healing")
 
-Tab:CreateButton({
-	Name = "💤 • Quick Sleep Anywhere (Heal)",
-	Callback = function()
-		if not Success then
-			return
-		end
-
-		local Bed = workspace.Map:FindFirstChild("Bed", true)
-
-		if not Bed then
-			return Notify("Error", "Could not find a bed to sleep in.")
-		end
-
-		local Interact = GetChildInCharacter("Interact")
-
-		if not Interact then
-			return
-		end
-
-		Interact:FireServer({
-			player = Player,
-			Object = Bed,
-			Action = "Sleep"
-		})
-	end,
-})
 
 Tab:CreateDivider()
 
