@@ -1072,7 +1072,7 @@ local function ESPModel(Model: Model, FlagName: string, OverheadText: string)
 	end)
 end
 
-local PlayerText = "Player: <NAME> | Health: <HEALTH>/<MAXHEALTH> (<HEALTHPERCENTAGE>%) | Distance: <DISTANCE>"
+local PlayerText = "<NAME> | HP: <HEALTH>/<MAXHEALTH> | <DISTANCE> m"
 
 local function PlayerESP(TargetPlayer: Player)
 	local function BeginEsp(NewCharacter: Model)
