@@ -152,17 +152,6 @@ task.spawn(function()
     end
 end)
 
-
-local VirtualUser = game:GetService("VirtualUser")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-
-HandleConnection(Player.Idled:Connect(function()
-	VirtualUser:CaptureController()
-	VirtualUser:ClickButton2(Vector2.zero)
-	VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.RightMeta, false, game)
-	VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.RightMeta, false, game)
-end), "AntiAFK")
-
 local OriginalFlags = {}
 
 if getgenv().Flags then
