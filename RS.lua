@@ -2,9 +2,8 @@
 local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
 getgenv().ScriptVersion = "v0.0.1"
-
 getgenv().Changelog = [[
-
+    1
 ]]
 
 do
@@ -48,28 +47,45 @@ local Notify: (Title: string, Content: string, Image: string?) -> () = getgenv()
 local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -> () | boolean)?, MaxDistance: number?) -> PVInstance? = getgenv().GetClosestChild
 local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
 
--- Заменяем первоначальное require на ленивую загрузку через GetNetwork
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+local Flags: Flags = getgenv().Flags
+local Player = Players.LocalPlayer
+
+-- Отложенная загрузка модуля Network:
 local Network
 local function GetNetwork()
+	-- Если персонажа ещё нет, ждём его появления
+	if not Player.Character then
+		Player.CharacterAdded:Wait()
+	end
+	-- Небольшая задержка для полной инициализации
+	task.wait(1)
 	if not Network then
 		local ok, module = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
 		if ok then
 			Network = module
 		else
 			warn("Failed to load module Network:", module)
-			return nil
+			-- Для отладки можно задать dummy‑модуль, чтобы вызовы не ломали скрипт
+			Network = {
+				connect = function(...)
+					print("dummy network connect called", ...)
+				end,
+			}
 		end
 	end
 	return Network
 end
 
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-
-local Flags: Flags = getgenv().Flags
-
-local Player = game:GetService("Players").LocalPlayer
+-- Чтобы гарантировать, что модуль загрузится уже после появления персонажа,
+-- можно подписаться на событие CharacterAdded:
+Player.CharacterAdded:Connect(function(character)
+	task.wait(1)
+	GetNetwork() -- предзагрузка модуля после спавна
+end)
 
 local function GetChildInCharacter(ChildName: string): (RemoteEvent & BasePart & Humanoid)?
 	local Character = Player.Character
@@ -336,7 +352,6 @@ Tab:CreateToggle({
 		if not GetNetwork() then
 			return
 		end
-
 		local Closest = GetClosestChild(workspace.Harvestable:GetChildren(), function(Child)
 			if Child == Player.Character then
 				return true
@@ -369,7 +384,6 @@ Tab:CreateToggle({
 		if not GetNetwork() then
 			return
 		end
-
 		for _, Item: Model in workspace.Effects:GetChildren() do
 			if not Item:FindFirstChild("InteractPrompt") then
 				continue
@@ -398,14 +412,13 @@ local function HarvestablesAfterLoop()
 		TeleportLocalCharacter(CFrame.new(SavedPosition))
 		task.wait(1)
 	end
-	
 	local Part: Part = workspace:FindFirstChild("SafetyModePart")
 	if Part then
 		Part:Destroy()
 	end
 end
 
-local autofarmingActive = false  -- Флаг для отслеживания автофарминга
+local autofarmingActive = false
 
 Tab:CreateToggle({
     Name = "⛏️ • Auto Farming",
@@ -417,12 +430,10 @@ Tab:CreateToggle({
             ResourceTween:Cancel()
             ResourceTween = nil
         end
-        
-        local Character = Player.Character
+       	local Character = Player.Character
         if not Character then
             return
         end
-        
         SavedPosition = Character:GetPivot().Position
     end,
     Callback = function()
@@ -430,7 +441,7 @@ Tab:CreateToggle({
             if not table.find(Flags.Harvestables.CurrentOption, Child.Name) then
                 return true
             end
-           	if Child:GetAttribute("SetRespawn") then
+            if Child:GetAttribute("SetRespawn") then
                 return true
             end
         end)
@@ -442,7 +453,6 @@ Tab:CreateToggle({
                     ActiveNotification = false
                 end)
             end
-            
             if Flags.SafetyMode.CurrentValue then
                 local Character = Player.Character
                 if not Character then
@@ -471,7 +481,6 @@ Tab:CreateToggle({
         local Distance = (HumanoidRootPart.Position - GoTo.Position).Magnitude
         local VirtualInputManager = game:GetService("VirtualInputManager")
 
-        -- Убираем коллизии у руды
         for _, part in pairs(Closest:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
@@ -506,7 +515,6 @@ Tab:CreateToggle({
     AfterLoop = HarvestablesAfterLoop,
 })
 
--- Функция для автоматического нажатия клавиши "W" каждую секунду при включённом автофарминге
 local function startAutoFarming()
     while autofarmingActive do
         wait(1)
@@ -515,7 +523,6 @@ local function startAutoFarming()
     end
 end
 
--- Отслеживаем состояние автофарминга и запускаем/останавливаем цикл нажатия "W"
 game:GetService("RunService").Heartbeat:Connect(function()
     if Flags.MoveHarvestables.CurrentValue and not autofarmingActive then
         autofarmingActive = true
@@ -579,7 +586,6 @@ Tab:CreateToggle({
 		if not GetNetwork() then
 			return
 		end
-		
 		local Backpack: Backpack = Player:FindFirstChild("Backpack")
 		if not Backpack then
 			return
