@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-	Network
+
 ]]
 
 do
@@ -48,14 +48,20 @@ local Notify: (Title: string, Content: string, Image: string?) -> () = getgenv()
 local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -> () | boolean)?, MaxDistance: number?) -> PVInstance? = getgenv().GetClosestChild
 local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
 
+-- Заменяем первоначальное require на ленивую загрузку через GetNetwork
 local Network
 local function GetNetwork()
-    if not Network then
-        Network = require(game:GetService("ReplicatedStorage").Modules.Network)
-    end
-    return Network
+	if not Network then
+		local ok, module = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
+		if ok then
+			Network = module
+		else
+			warn("Failed to load module Network:", module)
+			return nil
+		end
+	end
+	return Network
 end
-
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -67,13 +73,10 @@ local Player = game:GetService("Players").LocalPlayer
 
 local function GetChildInCharacter(ChildName: string): (RemoteEvent & BasePart & Humanoid)?
 	local Character = Player.Character
-
 	if not Character then
 		return
 	end
-
 	local Child = Character:FindFirstChild(ChildName, true)
-
 	return Child
 end
 
@@ -81,25 +84,21 @@ local LastFired = 0
 
 local function TeleportLocalCharacter(NewLocation: CFrame)
 	local Character = Player.Character
-
 	if not Character then
 		return
 	end
 	
 	local InvisibleParts: Folder = workspace:FindFirstChild("InvisibleParts")
-	
 	if not InvisibleParts then
 		return
 	end
 	
 	local MandrakeRope = InvisibleParts:FindFirstChild("MandrakeRope")
-	
 	if not MandrakeRope then
 		return
 	end
 	
 	local MandrakePit = InvisibleParts:FindFirstChild("MandrakePit") :: Part
-
 	if not MandrakePit then
 		return
 	end
@@ -107,11 +106,9 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 	if (Character:GetPivot().Position - NewLocation.Position).Magnitude > 50 then
 		if tick() - LastFired >= 2 then
 			local Interact = GetChildInCharacter("Interact")
-
 			if not Interact then
 				return
 			end
-
 			Interact:FireServer({
 				player = Player,
 				Object = MandrakeRope,
@@ -119,13 +116,11 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 			})
 			LastFired = tick()
 		end
-
+		
 		local Start = tick()
-
 		repeat
 			task.wait()
 		until (Character:GetPivot().Position - MandrakePit.Position).Magnitude <= 10 or tick() - Start >= 1
-
 		task.wait(0.1)
 	end
 	
@@ -133,15 +128,16 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 end
 
 local function EmulateClick()
-	if not Success then
+	local net = GetNetwork()
+	if not net then
 		return
 	end
 	
-	Network.connect("MouseInput", "Fire", Player.Character, {
+	net.connect("MouseInput", "Fire", Player.Character, {
 		Config = "Button1Down"
 	})
 	
-	Network.connect("MouseInput", "Fire", Player.Character, {
+	net.connect("MouseInput", "Fire", Player.Character, {
 		Config = "Button1Up"
 	})
 end
@@ -150,9 +146,8 @@ local function IsInvalidMob(Child: PVInstance): ()
 	if Child == Player.Character then
 		return true
 	end
-
+	
 	local Master = Child:FindFirstChild("Master") :: ObjectValue
-
 	if Master and Master.Value == Player.Character then
 		return true
 	end
@@ -167,17 +162,15 @@ local Tab: Tab = Window:CreateTab("Combat", "swords")
 Tab:CreateSection("Attacking")
 
 Tab:CreateToggle({
-	Name = ApplyUnsupportedName("⚔ • Auto Attack", Success),
+	Name = ApplyUnsupportedName("⚔ • Auto Attack", GetNetwork() ~= nil),
 	CurrentValue = false,
 	Flag = "Attack",
 	Looped = true,
 	Callback = function()
 		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
-
 		if not ClosestMob then
 			return
 		end
-
 		EmulateClick()
 	end,
 })
@@ -191,44 +184,32 @@ Tab:CreateToggle({
 	Looped = true,
 	Callback = function(Value)
 		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
-
 		local Character = Player.Character
-
 		if not Character then
 			return
 		end
-
 		local Humanoid = GetChildInCharacter("Humanoid")
-
 		if not Humanoid then
 			return
 		end
-
 		if not ClosestMob then
 			Humanoid.AutoRotate = true
 			return
 		end
-
 		local HumanoidRootPart = GetChildInCharacter("HumanoidRootPart")
-
 		if not HumanoidRootPart then
 			return
 		end
-
 		Humanoid.AutoRotate = false
-
 		local Position = HumanoidRootPart.Position
 		local ClosestPosition = ClosestMob:GetPivot().Position
-
 		HumanoidRootPart.CFrame = CFrame.lookAt(Position, Vector3.new(ClosestPosition.X, Position.Y, ClosestPosition.Z))
 	end,
 	AfterLoop = function()
 		local Humanoid = GetChildInCharacter("Humanoid")
-
 		if not Humanoid then
 			return
 		end
-
 		Humanoid.AutoRotate = true
 	end,
 })
@@ -265,12 +246,10 @@ Tab:CreateToggle({
 			if not table.find(Flags.Mobs.CurrentOption, Child.Name:split(".")[1]) then
 				return true
 			end
-			
 			if Child:FindFirstChild("Master") then
 				return true
 			end
 		end)
-
 		if not Closest then
 			if not ActiveNotification then
 				Notify("Failed", "Couldn't find anything, try getting closer to it so it can load.")
@@ -281,18 +260,14 @@ Tab:CreateToggle({
 			end
 			return
 		end
-
 		local HumanoidRootPart: Part = Player.Character.HumanoidRootPart
-
 		local GoTo = CFrame.new(
 			Closest:GetPivot().Position
 				+ Closest:GetPivot().LookVector * Flags.Offset.CurrentValue
-				+ Vector3.yAxis * Flags.HeightOffset.CurrentValue
-			, Closest:GetPivot().Position
+				+ Vector3.yAxis * Flags.HeightOffset.CurrentValue,
+			Closest:GetPivot().Position
 		)
-
 		local Distance = (HumanoidRootPart.Position - GoTo.Position).Magnitude
-		
 		if Flags.MobsMethod.CurrentOption[1] == "Teleport" then
 			TeleportLocalCharacter(GoTo)
 		else
@@ -358,7 +333,7 @@ Tab:CreateToggle({
 	Flag = "Gather",
 	Looped = true,
 	Callback = function()
-		if not Success then
+		if not GetNetwork() then
 			return
 		end
 
@@ -366,22 +341,17 @@ Tab:CreateToggle({
 			if Child == Player.Character then
 				return true
 			end
-
 			if Child:GetAttribute("SetRespawn") then
 				return true
 			end
 		end)
-
 		if not Closest then
 			return
 		end
-
 		local Interact = GetChildInCharacter("Interact")
-
 		if not Interact then
 			return
 		end
-
 		Interact:FireServer({
 			player = Player,
 			Object = Closest,
@@ -396,7 +366,7 @@ Tab:CreateToggle({
 	Flag = "PickUp",
 	Looped = true,
 	Callback = function()
-		if not Success then
+		if not GetNetwork() then
 			return
 		end
 
@@ -404,13 +374,10 @@ Tab:CreateToggle({
 			if not Item:FindFirstChild("InteractPrompt") then
 				continue
 			end
-
 			local Interact = GetChildInCharacter("Interact")
-
 			if not Interact then
 				continue
 			end
-
 			Interact:FireServer({
 				player = Player,
 				Object = Item,
@@ -433,14 +400,12 @@ local function HarvestablesAfterLoop()
 	end
 	
 	local Part: Part = workspace:FindFirstChild("SafetyModePart")
-
 	if Part then
 		Part:Destroy()
 	end
 end
 
-
-local autofarmingActive = false  -- Flag to track whether autofarming is active
+local autofarmingActive = false  -- Флаг для отслеживания автофарминга
 
 Tab:CreateToggle({
     Name = "⛏️ • Auto Farming",
@@ -465,12 +430,10 @@ Tab:CreateToggle({
             if not table.find(Flags.Harvestables.CurrentOption, Child.Name) then
                 return true
             end
-
-            if Child:GetAttribute("SetRespawn") then
+           	if Child:GetAttribute("SetRespawn") then
                 return true
             end
         end)
-
         if not Closest then
             if not ActiveNotification then
                 Notify("Failed", "Couldn't find anything, try getting closer to it so it can load.")
@@ -485,18 +448,15 @@ Tab:CreateToggle({
                 if not Character then
                     return
                 end
-                
                 if workspace:FindFirstChild("SafetyModePart") then
                     return
                 end
-                
                 local Part = Instance.new("Part")
                 Part.Name = "SafetyModePart"
                 Part.Size = Vector3.new(15, 5, 15)
                 Part.Anchored = true
                 Part.Parent = workspace
                 Part.Position = Character:GetPivot().Position + Vector3.yAxis * 750
-                
                 TeleportLocalCharacter(CFrame.new(Part.Position + Vector3.yAxis * 5))
             end
             return
@@ -546,25 +506,24 @@ Tab:CreateToggle({
     AfterLoop = HarvestablesAfterLoop,
 })
 
--- Function to start sending "W" key event every second when Auto Farming is active
+-- Функция для автоматического нажатия клавиши "W" каждую секунду при включённом автофарминге
 local function startAutoFarming()
     while autofarmingActive do
-        wait(1)  -- Wait for 1 second
+        wait(1)
         local VirtualInputManager = game:GetService("VirtualInputManager")
-        VirtualInputManager:SendKeyEvent(true, "W", false, game)  -- Press the "W" key
+        VirtualInputManager:SendKeyEvent(true, "W", false, game)
     end
 end
 
--- Monitor the state of Auto Farming and start/stop the "W" key press loop
+-- Отслеживаем состояние автофарминга и запускаем/останавливаем цикл нажатия "W"
 game:GetService("RunService").Heartbeat:Connect(function()
     if Flags.MoveHarvestables.CurrentValue and not autofarmingActive then
         autofarmingActive = true
-        task.spawn(startAutoFarming)  -- Start the loop when Auto Farming is enabled
+        task.spawn(startAutoFarming)
     elseif not Flags.MoveHarvestables.CurrentValue and autofarmingActive then
-        autofarmingActive = false  -- Stop the loop when Auto Farming is disabled
-        -- Release the "W" key when Auto Farming is disabled
+        autofarmingActive = false
         local VirtualInputManager = game:GetService("VirtualInputManager")
-        VirtualInputManager:SendKeyEvent(false, "W", false, game)  -- Release the "W" key
+        VirtualInputManager:SendKeyEvent(false, "W", false, game)
     end
 end)
 
@@ -574,7 +533,6 @@ for _, Object: PVInstance in workspace.Harvestable:GetChildren() do
 	if table.find(Resources, Object.Name) then
 		continue
 	end
-
 	table.insert(Resources, Object.Name)
 end
 
@@ -606,7 +564,6 @@ Tab:CreateToggle({
 		if Value then
 			return
 		end
-		
 		HarvestablesAfterLoop()
 	end,
 })
@@ -619,12 +576,11 @@ Tab:CreateToggle({
 	Flag = "Sell",
 	Looped = true,
 	Callback = function()
-		if not Success then
+		if not GetNetwork() then
 			return
 		end
 		
 		local Backpack: Backpack = Player:FindFirstChild("Backpack")
-		
 		if not Backpack then
 			return
 		end
@@ -647,7 +603,6 @@ Tab:CreateToggle({
 			end
 
 			local SellEvent = GetChildInCharacter("SellEvent")
-
 			if not SellEvent then
 				continue
 			end
@@ -663,7 +618,6 @@ for _, Tool: Tool in game:GetService("ReplicatedStorage").Storage.Tools:GetChild
 	if not Tool:FindFirstChild("SellValue") then
 		continue
 	end
-
 	table.insert(Items, Tool.Name)
 end
 
@@ -686,11 +640,9 @@ Dropdown = Tab:CreateDropdown({
 	MultipleOptions = false,
 	Callback = function(CurrentOption: any)
 		CurrentOption = CurrentOption[1]
-
 		if CurrentOption == "" then
 			return
 		end
-
 		Player.PlayerGui.CraftingGui.LocalScript.RemoteEvent:FireServer({
 			AmountToCraft = Flags.Quantity.CurrentValue,
 			SelectedItem = {
@@ -699,7 +651,6 @@ Dropdown = Tab:CreateDropdown({
 				Name = CurrentOption
 			}
 		})
-
 		Dropdown:Set({""})
 	end,
 })
@@ -718,36 +669,30 @@ local Tab: Tab = Window:CreateTab("Movement", "keyboard")
 Tab:CreateSection("Sprinting")
 
 Tab:CreateToggle({
-	Name = ApplyUnsupportedName("💨 • Auto Sprint", Success),
+	Name = ApplyUnsupportedName("💨 • Auto Sprint", GetNetwork() ~= nil),
 	CurrentValue = false,
 	Flag = "Sprint",
 	Looped = true,
 	Callback = function()
-		if not Success then
+		local net = GetNetwork()
+		if not net then
 			return
 		end
-
 		local Character = Player.Character
-
 		if not Character then
 			return
 		end
-
 		local Humanoid: Humanoid = Character:FindFirstChild("Humanoid")
-
 		if not Humanoid then
 			return
 		end
-
 		if Humanoid.MoveDirection == Vector3.zero then
 			return
 		end
-		
 		if Character:FindFirstChild("ServerRun") then
 			return
 		end
-
-		Network.connect("Sprint", "Fire", Character, true)
+		net.connect("Sprint", "Fire", Character, true)
 	end,
 })
 
@@ -765,7 +710,6 @@ for _, Object: Part in WorldAreas:GetChildren() do
 	if table.find(Areas, Object.Name) then
 		continue
 	end
-
 	table.insert(Areas, Object.Name)
 end
 
@@ -777,27 +721,19 @@ Dropdown = Tab:CreateDropdown({
 	MultipleOptions = false,
 	Callback = function(CurrentOption: any)
 		CurrentOption = CurrentOption[1]
-
 		if CurrentOption == "" then
 			return
 		end
-
 		local SelectedArea: Part = WorldAreas[CurrentOption]
-
 		local Success = pcall(function()
 			local Result = workspace:Raycast(SelectedArea.Position, Vector3.yAxis * -10000)
-
 			if not Result then
 				return Notify("Failed", "Failed to raycast in this area.")
 			end
-
 			local GoTo = CFrame.new(Result.Position)
-
 			TeleportLocalCharacter(GoTo)
 		end)
-		
 		Dropdown:Set({""})
-
 		if not Success then
 			return Notify("Error", "Failed to teleport.")
 		end
@@ -820,15 +756,11 @@ Dropdown = Tab:CreateDropdown({
 	MultipleOptions = false,
 	Callback = function(CurrentOption: any)
 		CurrentOption = CurrentOption[1]
-
 		if CurrentOption == "" then
 			return
 		end
-
 		local SelectedNPC: Model = workspace.Effects.NPCS:FindFirstChild(CurrentOption)
-
 		TeleportLocalCharacter(SelectedNPC:GetPivot())
-
 		Dropdown:Set({""})
 	end,
 })
@@ -840,25 +772,24 @@ Tab:CreateSection("Damage")
 local Original
 
 Tab:CreateToggle({
-	Name = ApplyUnsupportedName("🩸 • Remove Fall Damage", Success),
+	Name = ApplyUnsupportedName("🩸 • Remove Fall Damage", GetNetwork() ~= nil),
 	CurrentValue = false,
 	Flag = "FallDamage",
 	Callback = function(Value)
-		if not Success then
+		local net = GetNetwork()
+		if not net then
 			return
 		end
-
 		if Value then
-			Original = Network.connect
-			Network.connect = function(RemoteName, Method, Character, Settings, ...)
+			Original = net.connect
+			net.connect = function(RemoteName, Method, Character, Settings, ...)
 				if Settings and typeof(Settings) == "table" and Settings.Config == "FallDamage" then
 					return
 				end
-
 				return Original(RemoteName, Method, Character, Settings, ...)
 			end
 		elseif Original then
-			Network.connect = Original
+			net.connect = Original
 		end
 	end,
 })
@@ -875,7 +806,6 @@ Tab:CreateToggle({
 				if Part.Name ~= "lava" or not Part:IsA("Part") then
 					continue
 				end
-
 				LavaParts[Part] = Part.Parent
 				Part.Parent = nil
 			end
@@ -883,7 +813,6 @@ Tab:CreateToggle({
 			for Part: Part, Parent in LavaParts do
 				Part.Parent = Parent
 			end
-
 			LavaParts = {}
 		end
 	end,
@@ -894,22 +823,17 @@ Tab:CreateSection("Healing")
 Tab:CreateButton({
 	Name = "💤 • Quick Sleep Anywhere (Heal)",
 	Callback = function()
-		if not Success then
+		if not GetNetwork() then
 			return
 		end
-
 		local Bed = workspace.Map:FindFirstChild("Bed", true)
-
 		if not Bed then
 			return Notify("Error", "Could not find a bed to sleep in.")
 		end
-
 		local Interact = GetChildInCharacter("Interact")
-
 		if not Interact then
 			return
 		end
-
 		Interact:FireServer({
 			player = Player,
 			Object = Bed,
@@ -924,24 +848,17 @@ Tab:CreateButton({
 	Name = "💔 • Suicide Heal",
 	Callback = function()
 		local Character = Player.Character
-
 		if not Character then
 			return
 		end
-
 		local PreviousLocation = Character:GetPivot()
-
 		local Humanoid: Humanoid = Character:FindFirstChild("Humanoid")
-
 		if not Humanoid then
 			return
 		end
-
 		Humanoid.Health = 0
-
 		Player.CharacterAdded:Once(function(NewCharacter)
 			task.wait(Flags.Delay.CurrentValue)
-
 			NewCharacter:PivotTo(PreviousLocation)
 		end)
 	end,
@@ -963,22 +880,17 @@ end
 
 local function ESPModel(Model: Model, FlagName: string, OverheadText: string)
 	local FolderName = `{Model.Name}_{FlagName}`
-	
 	if not Flags[FlagName].CurrentValue then
 		local Holder = CoreGui:FindFirstChild(FolderName)
-		
 		if not Holder then
 			return
 		end
-		
 		Holder:Destroy()
-		
 		return
 	end
 	
 	do
 		local ExistingFolder = CoreGui:FindFirstChild(FolderName)
-		
 		if ExistingFolder then
 			ExistingFolder:Destroy()
 		end
@@ -992,7 +904,6 @@ local function ESPModel(Model: Model, FlagName: string, OverheadText: string)
 		if not Object:IsA("BasePart") and not Object:IsA("Model") then
 			continue
 		end
-
 		local BoxHandleAdornment = Instance.new("BoxHandleAdornment")
 		BoxHandleAdornment.Name = Model.Name
 		BoxHandleAdornment.Adornee = Object
@@ -1033,7 +944,6 @@ local function ESPModel(Model: Model, FlagName: string, OverheadText: string)
 		end
 		
 		local ModelHumanoid = Model and Model:FindFirstChild("Humanoid") :: Humanoid
-
 		if not Model or not Model.Parent or (ModelHumanoid and ModelHumanoid.Health == 0) then
 			Holder:Destroy()
 			return
@@ -1045,11 +955,9 @@ local function ESPModel(Model: Model, FlagName: string, OverheadText: string)
 		end
 		
 		local NewText = OverheadText:gsub("<NAME>", Model.Name)
-		
 		local Distance = math.floor((Model:GetPivot().Position - Player.Character:GetPivot().Position).Magnitude)
 		
 		if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-			--local Distance = math.floor((Model:GetPivot().Position - Player.Character:GetPivot().Position).Magnitude)
 			NewText = NewText:gsub("<DISTANCE>", StringFloor(Distance))
 		end
 		
@@ -1086,7 +994,6 @@ Tab:CreateToggle({
 			if TargetPlayer == Player then
 				continue
 			end
-
 			PlayerESP(TargetPlayer)
 		end
 	end,
@@ -1097,7 +1004,7 @@ HandleConnection(Players.PlayerAdded:Connect(PlayerESP), "PlayerESP")
 local MobText = "<NAME> | HP: <HEALTH>/<MAXHEALTH> | <DISTANCE> m"
 
 local function RemoveNumbers(str)
-    return str:gsub("[%d.]", "") -- Удаляет все цифры и точки
+    return str:gsub("[%d.]", "")
 end
 
 local function MobESP(Mob: Model)
@@ -1105,11 +1012,11 @@ local function MobESP(Mob: Model)
         return
     end
 
-    local CleanName = RemoveNumbers(Mob.Name) -- Убираем цифры из имени
-    local CustomMobText = MobText:gsub("<NAME>", CleanName) -- Заменяем в тексте
-
+    local CleanName = RemoveNumbers(Mob.Name)
+    local CustomMobText = MobText:gsub("<NAME>", CleanName)
     ESPModel(Mob, "MobESP", CustomMobText)
 end
+
 Tab:CreateToggle({
 	Name = "🐺 • Mob ESP",
 	CurrentValue = false,
@@ -1137,9 +1044,7 @@ Tab:CreateToggle({
 	Callback = function(Value)
 		if Value then
 			FogEnd = Lighting.FogEnd
-
 			Lighting.FogEnd = 100000
-
 			for _,v in Lighting:GetDescendants() do
 				if v:IsA("Atmosphere") then
 					table.insert(FogObjects, v)
@@ -1148,11 +1053,9 @@ Tab:CreateToggle({
 			end
 		elseif FogEnd then
 			Lighting.FogEnd = FogEnd
-
 			for _,v in FogObjects do
 				v.Parent = Lighting
 			end
-
 			FogObjects = {}
 		end
 	end,
