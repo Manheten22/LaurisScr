@@ -325,7 +325,7 @@ Dropdown = Tab:CreateDropdown({
 
 Tab:CreateSlider({
 	Name = "📐 • Offset",
-	Range = {-10, 10},
+	Range = {-20, 20},
 	Increment = 1,
 	Suffix = "Studs",
 	CurrentValue = -5,
@@ -334,7 +334,7 @@ Tab:CreateSlider({
 
 Tab:CreateSlider({
 	Name = "🔼 • Height Offset",
-	Range = {-10, 10},
+	Range = {-20, 20},
 	Increment = 1,
 	Suffix = "Studs",
 	CurrentValue = 0,
