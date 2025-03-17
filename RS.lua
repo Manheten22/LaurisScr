@@ -940,15 +940,6 @@ Tab:CreateButton({
 	end,
 })
 
-Tab:CreateSlider({
-	Name = "🔃 • Delay After Respawn",
-	Range = {0, 5},
-	Increment = 0.01,
-	Suffix = "Seconds",
-	CurrentValue = 1.5,
-	Flag = "Delay",
-})
-
 Tab:CreateSection("Identity")
 
 CreateFeature(Tab, "HideIdentity")
