@@ -1,17 +1,10 @@
 --!strict
 local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
-getgenv().ScriptVersion = "v0.0.7"
+getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-		🛠️ Changes & Fixes
-🐺 Auto Attack and Look At Closest Mob will no longer target your tamed pet
-🦌 Move to Mobs will now make you look at the mob you're moving to
-🍎 Removed "(No Tools Required)" from Auto Gather's name
-💨 Auto Sprint will not try to sprint again while you're already sprinting
-🔎 Both ESPs will now update their Distance and Health automatically
-		🎉 What's New?
-💬 Movement -> Transportation -> Teleport to NPC
+
 ]]
 
 do
