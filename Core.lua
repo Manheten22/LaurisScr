@@ -249,9 +249,9 @@ local Flags: Flags = Rayfield.Flags
 getgenv().Flags = Flags
 
 local Window = Rayfield:CreateWindow({
-	Name = `FrostByte | {PlaceName} | {ScriptVersion or "Dev Mode"}`,
+	Name = `Lauria | {PlaceName} | {ScriptVersion or "Dev Mode"}`,
 	Icon = "snowflake",
-	LoadingTitle = "❄ Brought to you by FrostByte ❄",
+	LoadingTitle = "❄ Brought to you by Lauria ❄",
 	LoadingSubtitle = PlaceName,
 	Theme = "DarkBlue",
 
@@ -452,7 +452,7 @@ local Features: FeaturesList = {
 			Element = "Input",
 			Info = {
 				Name = "💬 • Name To Replace With",
-				CurrentValue = "FrostByte",
+				CurrentValue = "Lauria",
 				PlaceholderText = "New Name Here",
 				RemoveTextAfterFocusLost = false,
 				Flag = "NameReplacement",
@@ -486,7 +486,7 @@ getgenv().CreateUniversalTabs = function()
 		FlagInfo:Set(CurrentValue)
 	end
 
-	Notify("Welcome to FrostByte", `Loaded in {math.floor((tick() - StartLoadTime) * 10) / 10}s`, "loader-circle")
+	Notify("Welcome to Lauria", `Loaded in {math.floor((tick() - StartLoadTime) * 10) / 10}s`, "loader-circle")
 end
 
 local FrostByteStarted = getgenv().FrostByteStarted
