@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-3333333333333333333
+4444444444444444
 ]]
 
 do
@@ -140,6 +140,17 @@ local function EmulateClick()
 	Network.connect("MouseInput", "Fire", Player.Character, {
 		Config = "Button1Up"
 	})
+end
+local function IsInvalidMob(Child: PVInstance): ()
+	if Child == Player.Character then
+		return true
+	end
+
+	local Master = Child:FindFirstChild("Master") :: ObjectValue
+
+	if Master and Master.Value == Player.Character then
+		return true
+	end
 end
 
 -- Features --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
