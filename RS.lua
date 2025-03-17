@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-	print
+	e
 ]]
 
 do
@@ -127,19 +127,6 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 	Character:PivotTo(NewLocation)
 end
 
-local function EmulateClick()
-	if not Success then
-		return
-	end
-	
-	Network.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Down"
-	})
-	
-	Network.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Up"
-	})
-end
 
 local function IsInvalidMob(Child: PVInstance): ()
 	if Child == Player.Character then
@@ -329,47 +316,6 @@ Tab:CreateSlider({
 	Flag = "HeightOffset",
 })
 
-local Tab: Tab = Window:CreateTab("Resources", "apple")
-
-Tab:CreateSection("Gathering")
-
-Tab:CreateToggle({
-	Name = "🍎 • Auto Gather",
-	CurrentValue = false,
-	Flag = "Gather",
-	Looped = true,
-	Callback = function()
-		if not Success then
-			return
-		end
-
-		local Closest = GetClosestChild(workspace.Harvestable:GetChildren(), function(Child)
-			if Child == Player.Character then
-				return true
-			end
-
-			if Child:GetAttribute("SetRespawn") then
-				return true
-			end
-		end)
-
-		if not Closest then
-			return
-		end
-
-		local Interact = GetChildInCharacter("Interact")
-
-		if not Interact then
-			return
-		end
-
-		Interact:FireServer({
-			player = Player,
-			Object = Closest,
-			Action = "Gather"
-		})
-	end,
-})
 
 Tab:CreateToggle({
 	Name = "🥚 • Auto Pick Up Items",
@@ -377,7 +323,7 @@ Tab:CreateToggle({
 	Flag = "PickUp",
 	Looped = true,
 	Callback = function()
-		if not Success then
+		if not  then
 			return
 		end
 
@@ -592,51 +538,7 @@ Tab:CreateToggle({
 	end,
 })
 
-Tab:CreateSection("Selling")
 
-Tab:CreateToggle({
-	Name = "💰 • Auto Sell Resources",
-	CurrentValue = false,
-	Flag = "Sell",
-	Looped = true,
-	Callback = function()
-		if not Success then
-			return
-		end
-		
-		local Backpack: Backpack = Player:FindFirstChild("Backpack")
-		
-		if not Backpack then
-			return
-		end
-
-		for _, Tool in Backpack:GetChildren() do
-			if not Tool:IsA("Tool") then
-				continue
-			end
-
-			if table.find(Flags.Blacklist.CurrentOption, Tool.Name) then
-				continue
-			end
-
-			if Tool:GetAttribute("Equipped") then
-				continue
-			end
-
-			if not Tool:GetAttribute("Rarity") then
-				continue
-			end
-
-			local SellEvent = GetChildInCharacter("SellEvent")
-
-			if not SellEvent then
-				continue
-			end
-
-			SellEvent:FireServer(Tool)
-		end
-	end,
-})
 
 local Items = {}
 
@@ -694,43 +596,6 @@ Tab:CreateSlider({
 	Flag = "Quantity",
 })
 
-local Tab: Tab = Window:CreateTab("Movement", "keyboard")
-
-Tab:CreateSection("Sprinting")
-
-Tab:CreateToggle({
-	Name = ApplyUnsupportedName("💨 • Auto Sprint", Success),
-	CurrentValue = false,
-	Flag = "Sprint",
-	Looped = true,
-	Callback = function()
-		if not Success then
-			return
-		end
-
-		local Character = Player.Character
-
-		if not Character then
-			return
-		end
-
-		local Humanoid: Humanoid = Character:FindFirstChild("Humanoid")
-
-		if not Humanoid then
-			return
-		end
-
-		if Humanoid.MoveDirection == Vector3.zero then
-			return
-		end
-		
-		if Character:FindFirstChild("ServerRun") then
-			return
-		end
-
-		Network.connect("Sprint", "Fire", Character, true)
-	end,
-})
 
 Tab:CreateSection("Speed")
 
