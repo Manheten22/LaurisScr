@@ -1038,6 +1038,12 @@ local function ESPModel(Model: Model, FlagName: string, OverheadText: string)
 	RenderSteppedConnection = RunService.RenderStepped:Connect(function()
 		if not Flags[FlagName].CurrentValue then
 			Holder:Destroy()
+			RenderSteppedConnection:Disconnect()
+			return
+		end
+
+		if not Holder.Parent then
+			RenderSteppedConnection:Disconnect()
 			return
 		end
 		
@@ -1045,30 +1051,24 @@ local function ESPModel(Model: Model, FlagName: string, OverheadText: string)
 
 		if not Model or not Model.Parent or (ModelHumanoid and ModelHumanoid.Health == 0) then
 			Holder:Destroy()
-			return
-		end
-		
-		if not Holder.Parent then
 			RenderSteppedConnection:Disconnect()
 			return
 		end
 		
-		local NewText = OverheadText:gsub("<NAME>", Model.Name)
-		
-		local Distance = math.floor((Model:GetPivot().Position - Player.Character:GetPivot().Position).Magnitude)
+		OverheadText = OverheadText:gsub("<NAME>", Model.Name)
 		
 		if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-			--local Distance = math.floor((Model:GetPivot().Position - Player.Character:GetPivot().Position).Magnitude)
-			NewText = NewText:gsub("<DISTANCE>", StringFloor(Distance))
+			local Distance = math.floor((Model:GetPivot().Position - Player.Character:GetPivot().Position).Magnitude)
+			OverheadText = OverheadText:gsub("<DISTANCE>", StringFloor(Distance))
 		end
 		
 		if ModelHumanoid then
-			NewText = NewText:gsub("<HEALTH>", StringFloor(ModelHumanoid.Health))
-			NewText = NewText:gsub("<MAXHEALTH>", StringFloor(ModelHumanoid.MaxHealth))
-			NewText = NewText:gsub("<HEALTHPERCENTAGE>", StringFloor(ModelHumanoid.Health / ModelHumanoid.MaxHealth * 100))
+			OverheadText = OverheadText:gsub("<HEALTH>", StringFloor(ModelHumanoid.Health))
+			OverheadText = OverheadText:gsub("<MAXHEALTH>", StringFloor(ModelHumanoid.MaxHealth))
+			OverheadText = OverheadText:gsub("<HEALTHPERCENTAGE>", StringFloor(ModelHumanoid.Health / ModelHumanoid.MaxHealth * 100))
 		end
 		
-		TextLabel.Text = NewText
+		TextLabel.Text = OverheadText
 	end)
 end
 
@@ -1105,23 +1105,30 @@ HandleConnection(Players.PlayerAdded:Connect(PlayerESP), "PlayerESP")
 
 local MobText = "<NAME> | Health: <HEALTH>/<MAXHEALTH> (<HEALTHPERCENTAGE>%) | Distance: <DISTANCE>"
 
-local function MobESP(Mob: Model)
-	if not Mob:GetAttribute("NPC") then
-		return
-	end
+local function RemoveNumbers(str)
+    return str:gsub("[%d.]", "") -- Удаляет все цифры и точки
+end
 
-	ESPModel(Mob, "MobESP", MobText)
+local function MobESP(Mob: Model)
+    if not Mob:GetAttribute("NPC") then
+        return
+    end
+
+    local CleanName = RemoveNumbers(Mob.Name) -- Убираем цифры из имени
+    local CustomMobText = MobText:gsub("<NAME>", CleanName) -- Заменяем в тексте
+
+    ESPModel(Mob, "MobESP", CustomMobText)
 end
 
 Tab:CreateToggle({
-	Name = "🐺 • Mob ESP",
-	CurrentValue = false,
-	Flag = "MobESP",
-	Callback = function(Value)
-		for _, Mob: Model in workspace.Alive:GetChildren() do
-			MobESP(Mob)
-		end
-	end,
+    Name = "🐺 • Mob ESP",
+    CurrentValue = false,
+    Flag = "MobESP",
+    Callback = function(Value)
+        for _, Mob: Model in workspace.Alive:GetChildren() do
+            MobESP(Mob)
+        end
+    end,
 })
 
 HandleConnection(workspace.Alive.ChildAdded:Connect(MobESP), "MobESP")
