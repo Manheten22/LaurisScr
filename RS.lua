@@ -75,32 +75,6 @@ end
 
 local LastFired = 0
 
-local function EmulateClick()
-	if not Success then
-		return
-	end
-	
-	Network.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Down"
-	})
-	
-	Network.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Up"
-	})
-end	
-
-local function IsInvalidMob(Child: PVInstance): ()
-	if Child == Player.Character then
-		return true
-	end
-
-	local Master = Child:FindFirstChild("Master") :: ObjectValue
-
-	if Master and Master.Value == Player.Character then
-		return true
-	end
-end
-
 -- Features --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 -- Features --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
