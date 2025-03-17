@@ -1136,3 +1136,5 @@ Tab:CreateToggle({
 		end
 	end,
 })
+
+getgenv().CreateUniversalTabs()
