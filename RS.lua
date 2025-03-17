@@ -1,4 +1,4 @@
---!strict
+	--!strict
 local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
 getgenv().ScriptVersion = "v0.0.1"
@@ -53,14 +53,20 @@ local Player = Players.LocalPlayer
 
 -- Вместо реального Network модуля используем dummy‑версию,
 -- которая не выполняет никаких действий и не вмешивается в спавн
+local lastCallTimes = {}
+
 local dummyNetwork = {
-	connect = function(remote: string, method: string, character: Instance, settings: any, ...)
-		-- Для отладки можно выводить информацию о вызове
-		print("dummy network connect called:", remote, method)
-		-- Здесь можно добавить эмуляцию нужного функционала, если потребуется
-	end,
+    connect = function(remote: string, method: string, character: Instance, settings: any, ...)
+        local key = remote .. "_" .. method
+        if lastCallTimes[key] and tick() - lastCallTimes[key] < 0.1 then
+            return
+        end
+        lastCallTimes[key] = tick()
+        print("dummy network connect called:", remote, method)
+    end
 }
-local Network = dummyNetwork
+
+local Network = getgenv().Network or dummyNetwork
 local function GetNetwork()
 	return Network
 end
@@ -110,17 +116,18 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 	Character:PivotTo(NewLocation)
 end
 
+local lastMouseFire = 0
 local function EmulateClick()
-	local net = GetNetwork()
-	if not net then return end
-	
-	net.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Down"
-	})
-	net.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Up"
-	})
+    if tick() - lastMouseFire < 0.2 then return end  -- Ограничение 5 кликов в секунду
+    lastMouseFire = tick()
+    
+    local net = GetNetwork()
+    if not net then return end
+
+    net.connect("MouseInput", "Fire", Player.Character, {Config = "Button1Down"})
+    net.connect("MouseInput", "Fire", Player.Character, {Config = "Button1Up"})
 end
+
 
 local function IsInvalidMob(Child: PVInstance): ()
 	if Child == Player.Character then return true end
