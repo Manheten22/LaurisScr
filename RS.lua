@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-	GetClosestChild
+	HandleConnection
 ]]
 
 do
@@ -43,7 +43,7 @@ type Tab = {
 -- Variables
 
 local ApplyUnsupportedName: (Name: string, Condition: boolean) -> (string) = getgenv().ApplyUnsupportedName
---local HandleConnection: (Connection: RBXScriptConnection, Name: string) -> () = getgenv().HandleConnection
+local HandleConnection: (Connection: RBXScriptConnection, Name: string) -> () = getgenv().HandleConnection
 local Notify: (Title: string, Content: string, Image: string?) -> () = getgenv().Notify
 local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -> () | boolean)?, MaxDistance: number?) -> PVInstance? = getgenv().GetClosestChild
 --local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
