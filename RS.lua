@@ -323,22 +323,57 @@ Dropdown = Tab:CreateDropdown({
 	Flag = "MobsMethod",
 })
 
+-- X Offset
 Tab:CreateSlider({
-	Name = "📐 • Offset",
-	Range = {-20, 20},
-	Increment = 1,
-	Suffix = "Studs",
-	CurrentValue = -5,
-	Flag = "Offset",
+    Name = "📐 • X Offset",
+    Range = {-20, 20},
+    Increment = 1,
+    Suffix = "Studs",
+    CurrentValue = -5,
+    Flag = "Offset",
+    Callback = function(value)
+        -- Обновляем текстовое поле при изменении слайдера
+        Tab.Elements["XOffsetInput"]:SetText(tostring(value))
+    end
 })
 
+Tab.Elements["XOffsetInput"] = Tab:CreateTextBox({
+    Name = "X Offset Input",
+    Placeholder = "Enter X Offset",
+    CurrentValue = "-5",
+    Flag = "OffsetInput",
+    Callback = function(text)
+        local number = tonumber(text)
+        if number and number >= -20 and number <= 20 then
+            Tab:Set("Offset", number) -- Обновляем значение слайдера
+        end
+    end
+})
+
+-- Y Offset
 Tab:CreateSlider({
-	Name = "🔼 • Height Offset",
-	Range = {-20, 20},
-	Increment = 1,
-	Suffix = "Studs",
-	CurrentValue = 0,
-	Flag = "HeightOffset",
+    Name = "🔼 • Y Offset",
+    Range = {-20, 20},
+    Increment = 1,
+    Suffix = "Studs",
+    CurrentValue = 0,
+    Flag = "HeightOffset",
+    Callback = function(value)
+        Tab.Elements["YOffsetInput"]:SetText(tostring(value))
+    end
+})
+
+Tab.Elements["YOffsetInput"] = Tab:CreateTextBox({
+    Name = "Y Offset Input",
+    Placeholder = "Enter Y Offset",
+    CurrentValue = "0",
+    Flag = "HeightOffsetInput",
+    Callback = function(text)
+        local number = tonumber(text)
+        if number and number >= -20 and number <= 20 then
+            Tab:Set("HeightOffset", number)
+        end
+    end
 })
 
 local Tab: Tab = Window:CreateTab("Resources", "apple")
