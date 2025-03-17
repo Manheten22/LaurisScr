@@ -8,7 +8,7 @@ getgenv().Changelog = [[
 ]]
 
 do
-	--local Core = loadstring(game:HttpGet("https://raw.githubusercontent.com/Manheten22/LaurisScr/refs/heads/main/Core.lua"))
+	local Core = loadstring(game:HttpGet("https://raw.githubusercontent.com/Manheten22/LaurisScr/refs/heads/main/Core.lua"))
 	
 	if not Core then
 		return warn("Failed to load the FrostByte Core")
