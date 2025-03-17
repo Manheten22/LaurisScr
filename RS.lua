@@ -1103,7 +1103,7 @@ Tab:CreateToggle({
 
 HandleConnection(Players.PlayerAdded:Connect(PlayerESP), "PlayerESP")
 
-local MobText = "Mob: <NAME> | Health: <HEALTH>/<MAXHEALTH> (<HEALTHPERCENTAGE>%) | Distance: <DISTANCE>"
+local MobText = "<NAME> | HP: <HEALTH>/<MAXHEALTH> | <DISTANCE> m"
 
 local function RemoveNumbers(str)
     return str:gsub("[%d.]", "") -- Удаляет все цифры и точки
