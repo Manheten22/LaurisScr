@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-ggg
+	Network
 ]]
 
 do
@@ -48,7 +48,14 @@ local Notify: (Title: string, Content: string, Image: string?) -> () = getgenv()
 local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -> () | boolean)?, MaxDistance: number?) -> PVInstance? = getgenv().GetClosestChild
 local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
 
-local Success, Network = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
+local Network
+local function GetNetwork()
+    if not Network then
+        Network = require(game:GetService("ReplicatedStorage").Modules.Network)
+    end
+    return Network
+end
+
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -125,6 +132,19 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 	Character:PivotTo(NewLocation)
 end
 
+local function EmulateClick()
+	if not Success then
+		return
+	end
+	
+	Network.connect("MouseInput", "Fire", Player.Character, {
+		Config = "Button1Down"
+	})
+	
+	Network.connect("MouseInput", "Fire", Player.Character, {
+		Config = "Button1Up"
+	})
+end
 
 local function IsInvalidMob(Child: PVInstance): ()
 	if Child == Player.Character then
@@ -146,6 +166,21 @@ local Tab: Tab = Window:CreateTab("Combat", "swords")
 
 Tab:CreateSection("Attacking")
 
+Tab:CreateToggle({
+	Name = ApplyUnsupportedName("⚔ • Auto Attack", Success),
+	CurrentValue = false,
+	Flag = "Attack",
+	Looped = true,
+	Callback = function()
+		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
+
+		if not ClosestMob then
+			return
+		end
+
+		EmulateClick()
+	end,
+})
 
 Tab:CreateSection("Aiming")
 
@@ -317,7 +352,73 @@ local Tab: Tab = Window:CreateTab("Resources", "apple")
 
 Tab:CreateSection("Gathering")
 
+Tab:CreateToggle({
+	Name = "🍎 • Auto Gather",
+	CurrentValue = false,
+	Flag = "Gather",
+	Looped = true,
+	Callback = function()
+		if not Success then
+			return
+		end
 
+		local Closest = GetClosestChild(workspace.Harvestable:GetChildren(), function(Child)
+			if Child == Player.Character then
+				return true
+			end
+
+			if Child:GetAttribute("SetRespawn") then
+				return true
+			end
+		end)
+
+		if not Closest then
+			return
+		end
+
+		local Interact = GetChildInCharacter("Interact")
+
+		if not Interact then
+			return
+		end
+
+		Interact:FireServer({
+			player = Player,
+			Object = Closest,
+			Action = "Gather"
+		})
+	end,
+})
+
+Tab:CreateToggle({
+	Name = "🥚 • Auto Pick Up Items",
+	CurrentValue = false,
+	Flag = "PickUp",
+	Looped = true,
+	Callback = function()
+		if not Success then
+			return
+		end
+
+		for _, Item: Model in workspace.Effects:GetChildren() do
+			if not Item:FindFirstChild("InteractPrompt") then
+				continue
+			end
+
+			local Interact = GetChildInCharacter("Interact")
+
+			if not Interact then
+				continue
+			end
+
+			Interact:FireServer({
+				player = Player,
+				Object = Item,
+				Action = "Pick Up"
+			})
+		end
+	end,
+})
 
 Tab:CreateSection("Moving")
 
@@ -512,6 +613,49 @@ Tab:CreateToggle({
 
 Tab:CreateSection("Selling")
 
+Tab:CreateToggle({
+	Name = "💰 • Auto Sell Resources",
+	CurrentValue = false,
+	Flag = "Sell",
+	Looped = true,
+	Callback = function()
+		if not Success then
+			return
+		end
+		
+		local Backpack: Backpack = Player:FindFirstChild("Backpack")
+		
+		if not Backpack then
+			return
+		end
+
+		for _, Tool in Backpack:GetChildren() do
+			if not Tool:IsA("Tool") then
+				continue
+			end
+
+			if table.find(Flags.Blacklist.CurrentOption, Tool.Name) then
+				continue
+			end
+
+			if Tool:GetAttribute("Equipped") then
+				continue
+			end
+
+			if not Tool:GetAttribute("Rarity") then
+				continue
+			end
+
+			local SellEvent = GetChildInCharacter("SellEvent")
+
+			if not SellEvent then
+				continue
+			end
+
+			SellEvent:FireServer(Tool)
+		end
+	end,
+})
 
 local Items = {}
 
@@ -573,6 +717,39 @@ local Tab: Tab = Window:CreateTab("Movement", "keyboard")
 
 Tab:CreateSection("Sprinting")
 
+Tab:CreateToggle({
+	Name = ApplyUnsupportedName("💨 • Auto Sprint", Success),
+	CurrentValue = false,
+	Flag = "Sprint",
+	Looped = true,
+	Callback = function()
+		if not Success then
+			return
+		end
+
+		local Character = Player.Character
+
+		if not Character then
+			return
+		end
+
+		local Humanoid: Humanoid = Character:FindFirstChild("Humanoid")
+
+		if not Humanoid then
+			return
+		end
+
+		if Humanoid.MoveDirection == Vector3.zero then
+			return
+		end
+		
+		if Character:FindFirstChild("ServerRun") then
+			return
+		end
+
+		Network.connect("Sprint", "Fire", Character, true)
+	end,
+})
 
 Tab:CreateSection("Speed")
 
@@ -592,6 +769,40 @@ for _, Object: Part in WorldAreas:GetChildren() do
 	table.insert(Areas, Object.Name)
 end
 
+local Dropdown
+Dropdown = Tab:CreateDropdown({
+	Name = "🌄 • Teleport to Area",
+	Options = Areas,
+	CurrentOption = "",
+	MultipleOptions = false,
+	Callback = function(CurrentOption: any)
+		CurrentOption = CurrentOption[1]
+
+		if CurrentOption == "" then
+			return
+		end
+
+		local SelectedArea: Part = WorldAreas[CurrentOption]
+
+		local Success = pcall(function()
+			local Result = workspace:Raycast(SelectedArea.Position, Vector3.yAxis * -10000)
+
+			if not Result then
+				return Notify("Failed", "Failed to raycast in this area.")
+			end
+
+			local GoTo = CFrame.new(Result.Position)
+
+			TeleportLocalCharacter(GoTo)
+		end)
+		
+		Dropdown:Set({""})
+
+		if not Success then
+			return Notify("Error", "Failed to teleport.")
+		end
+	end,
+})
 
 local NPCs = {}
 
@@ -628,6 +839,29 @@ Tab:CreateSection("Damage")
 
 local Original
 
+Tab:CreateToggle({
+	Name = ApplyUnsupportedName("🩸 • Remove Fall Damage", Success),
+	CurrentValue = false,
+	Flag = "FallDamage",
+	Callback = function(Value)
+		if not Success then
+			return
+		end
+
+		if Value then
+			Original = Network.connect
+			Network.connect = function(RemoteName, Method, Character, Settings, ...)
+				if Settings and typeof(Settings) == "table" and Settings.Config == "FallDamage" then
+					return
+				end
+
+				return Original(RemoteName, Method, Character, Settings, ...)
+			end
+		elseif Original then
+			Network.connect = Original
+		end
+	end,
+})
 
 local LavaParts = {}
 
@@ -657,6 +891,32 @@ Tab:CreateToggle({
 
 Tab:CreateSection("Healing")
 
+Tab:CreateButton({
+	Name = "💤 • Quick Sleep Anywhere (Heal)",
+	Callback = function()
+		if not Success then
+			return
+		end
+
+		local Bed = workspace.Map:FindFirstChild("Bed", true)
+
+		if not Bed then
+			return Notify("Error", "Could not find a bed to sleep in.")
+		end
+
+		local Interact = GetChildInCharacter("Interact")
+
+		if not Interact then
+			return
+		end
+
+		Interact:FireServer({
+			player = Player,
+			Object = Bed,
+			Action = "Sleep"
+		})
+	end,
+})
 
 Tab:CreateDivider()
 
