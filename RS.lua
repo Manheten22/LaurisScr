@@ -48,7 +48,9 @@ local Notify: (Title: string, Content: string, Image: string?) -> () = getgenv()
 local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -> () | boolean)?, MaxDistance: number?) -> PVInstance? = getgenv().GetClosestChild
 local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
 
---local Success, Network = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
+local Success, Network = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
+print("Network module loaded:", Success, Network)
+
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
