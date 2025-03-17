@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-	e
+
 ]]
 
 do
@@ -49,8 +49,6 @@ local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -
 local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
 
 local Success, Network = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
-print("Network module loaded:", Success, Network)
-
 
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -147,7 +145,6 @@ local Window = getgenv().Window
 local Tab: Tab = Window:CreateTab("Combat", "swords")
 
 Tab:CreateSection("Attacking")
-
 
 
 Tab:CreateSection("Aiming")
@@ -316,36 +313,11 @@ Tab:CreateSlider({
 	Flag = "HeightOffset",
 })
 
+local Tab: Tab = Window:CreateTab("Resources", "apple")
 
-Tab:CreateToggle({
-	Name = "🥚 • Auto Pick Up Items",
-	CurrentValue = false,
-	Flag = "PickUp",
-	Looped = true,
-	Callback = function()
-		if not  then
-			return
-		end
+Tab:CreateSection("Gathering")
 
-		for _, Item: Model in workspace.Effects:GetChildren() do
-			if not Item:FindFirstChild("InteractPrompt") then
-				continue
-			end
 
-			local Interact = GetChildInCharacter("Interact")
-
-			if not Interact then
-				continue
-			end
-
-			Interact:FireServer({
-				player = Player,
-				Object = Item,
-				Action = "Pick Up"
-			})
-		end
-	end,
-})
 
 Tab:CreateSection("Moving")
 
@@ -538,6 +510,7 @@ Tab:CreateToggle({
 	end,
 })
 
+Tab:CreateSection("Selling")
 
 
 local Items = {}
@@ -595,6 +568,10 @@ Tab:CreateSlider({
 	CurrentValue = 1,
 	Flag = "Quantity",
 })
+
+local Tab: Tab = Window:CreateTab("Movement", "keyboard")
+
+Tab:CreateSection("Sprinting")
 
 
 Tab:CreateSection("Speed")
