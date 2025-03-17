@@ -1110,25 +1110,23 @@ local function RemoveNumbers(str)
 end
 
 local function MobESP(Mob: Model)
-    if not Mob:GetAttribute("NPC") then
-        return
-    end
+	if not Mob:GetAttribute("NPC") then
+		return
+	end
 
-    local CleanName = RemoveNumbers(Mob.Name) -- Убираем цифры из имени
-    local CustomMobText = MobText:gsub("<NAME>", CleanName) -- Заменяем в тексте
-
-    ESPModel(Mob, "MobESP", CustomMobText)
+	ESPModel(Mob, "MobESP", MobText)
 end
 
+
 Tab:CreateToggle({
-    Name = "🐺 • Mob ESP",
-    CurrentValue = false,
-    Flag = "MobESP",
-    Callback = function(Value)
-        for _, Mob: Model in workspace.Alive:GetChildren() do
-            MobESP(Mob)
-        end
-    end,
+	Name = "🐺 • Mob ESP",
+	CurrentValue = false,
+	Flag = "MobESP",
+	Callback = function(Value)
+		for _, Mob: Model in workspace.Alive:GetChildren() do
+			MobESP(Mob)
+		end
+	end,
 })
 
 HandleConnection(workspace.Alive.ChildAdded:Connect(MobESP), "MobESP")
