@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-4444444444444444
+5
 ]]
 
 do
@@ -128,19 +128,6 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 	Character:PivotTo(NewLocation)
 end
 
-local function EmulateClick()
-	if not Success then
-		return
-	end
-	
-	Network.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Down"
-	})
-	
-	Network.connect("MouseInput", "Fire", Player.Character, {
-		Config = "Button1Up"
-	})
-end
 local function IsInvalidMob(Child: PVInstance): ()
 	if Child == Player.Character then
 		return true
