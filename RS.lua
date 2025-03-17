@@ -826,36 +826,6 @@ Dropdown = Tab:CreateDropdown({
 	end,
 })
 
-local Tab: Tab = Window:CreateTab("Safety", "shield")
-
-Tab:CreateSection("Damage")
-
-local Original
-
-Tab:CreateToggle({
-	Name = ApplyUnsupportedName("🩸 • Remove Fall Damage", Success),
-	CurrentValue = false,
-	Flag = "FallDamage",
-	Callback = function(Value)
-		if not Success then
-			return
-		end
-
-		if Value then
-			Original = Network.connect
-			Network.connect = function(RemoteName, Method, Character, Settings, ...)
-				if Settings and typeof(Settings) == "table" and Settings.Config == "FallDamage" then
-					return
-				end
-
-				return Original(RemoteName, Method, Character, Settings, ...)
-			end
-		elseif Original then
-			Network.connect = Original
-		end
-	end,
-})
-
 local LavaParts = {}
 
 Tab:CreateToggle({
@@ -881,68 +851,6 @@ Tab:CreateToggle({
 		end
 	end,
 })
-
-Tab:CreateSection("Healing")
-
-Tab:CreateButton({
-	Name = "💤 • Quick Sleep Anywhere (Heal)",
-	Callback = function()
-		if not Success then
-			return
-		end
-
-		local Bed = workspace.Map:FindFirstChild("Bed", true)
-
-		if not Bed then
-			return Notify("Error", "Could not find a bed to sleep in.")
-		end
-
-		local Interact = GetChildInCharacter("Interact")
-
-		if not Interact then
-			return
-		end
-
-		Interact:FireServer({
-			player = Player,
-			Object = Bed,
-			Action = "Sleep"
-		})
-	end,
-})
-
-Tab:CreateDivider()
-
-Tab:CreateButton({
-	Name = "💔 • Suicide Heal",
-	Callback = function()
-		local Character = Player.Character
-
-		if not Character then
-			return
-		end
-
-		local PreviousLocation = Character:GetPivot()
-
-		local Humanoid: Humanoid = Character:FindFirstChild("Humanoid")
-
-		if not Humanoid then
-			return
-		end
-
-		Humanoid.Health = 0
-
-		Player.CharacterAdded:Once(function(NewCharacter)
-			task.wait(Flags.Delay.CurrentValue)
-
-			NewCharacter:PivotTo(PreviousLocation)
-		end)
-	end,
-})
-
-Tab:CreateSection("Identity")
-
-CreateFeature(Tab, "HideIdentity")
 
 local Tab: Tab = Window:CreateTab("Visuals", "sparkles")
 
