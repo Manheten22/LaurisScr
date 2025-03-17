@@ -4,7 +4,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 getgenv().ScriptVersion = "v0.0.1"
 
 getgenv().Changelog = [[
-222222222222
+3333333333333333333
 ]]
 
 do
@@ -40,7 +40,9 @@ type Tab = {
 	CreateParagraph: (self: Tab, any) -> Element,
 }
 
--- Variables
+-- Glitch --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- Glitch --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 local ApplyUnsupportedName: (Name: string, Condition: boolean) -> (string) = getgenv().ApplyUnsupportedName
 local HandleConnection: (Connection: RBXScriptConnection, Name: string) -> () = getgenv().HandleConnection
@@ -140,18 +142,9 @@ local function EmulateClick()
 	})
 end
 
-local function IsInvalidMob(Child: PVInstance): ()
-	if Child == Player.Character then
-		return true
-	end
+-- Features --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	local Master = Child:FindFirstChild("Master") :: ObjectValue
-
-	if Master and Master.Value == Player.Character then
-		return true
-	end
-end
--- Features
+-- Features --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 local Window = getgenv().Window
 
