@@ -116,18 +116,6 @@ local function TeleportLocalCharacter(NewLocation: CFrame)
 	Character:PivotTo(NewLocation)
 end
 
-local lastMouseFire = 0
-local function EmulateClick()
-    if tick() - lastMouseFire < 0.2 then return end  -- Ограничение 5 кликов в секунду
-    lastMouseFire = tick()
-    
-    local net = GetNetwork()
-    if not net then return end
-
-    net.connect("MouseInput", "Fire", Player.Character, {Config = "Button1Down"})
-    net.connect("MouseInput", "Fire", Player.Character, {Config = "Button1Up"})
-end
-
 
 local function IsInvalidMob(Child: PVInstance): ()
 	if Child == Player.Character then return true end
@@ -152,9 +140,16 @@ Tab:CreateToggle({
 	Callback = function()
 		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
 		if not ClosestMob then return end
-		EmulateClick()
+		local VirtualInputManager = game:GetService("VirtualInputManager")
+		
+		while Flags.Attack do
+			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0) -- Нажатие ЛКМ
+			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) -- Отпускание ЛКМ
+			wait(0.2) -- 5 раз в секунду (1/5 = 0.2 сек)
+		end
 	end,
 })
+
 
 Tab:CreateSection("Aiming")
 Tab:CreateToggle({
@@ -440,6 +435,7 @@ game:GetService("RunService").Heartbeat:Connect(function()
     elseif not Flags.MoveHarvestables.CurrentValue and autofarmingActive then
         autofarmingActive = false
         local VirtualInputManager = game:GetService("VirtualInputManager")
+	wait(1)
         VirtualInputManager:SendKeyEvent(false, "W", false, game)
     end
 end)
