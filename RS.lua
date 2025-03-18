@@ -136,18 +136,23 @@ Tab:CreateToggle({
 	Name = ApplyUnsupportedName("⚔ • Auto Attack", GetNetwork() ~= nil),
 	CurrentValue = false,
 	Flag = "Attack",
-	Callback = function()
-		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
-		if not ClosestMob then return end
-		local VirtualInputManager = game:GetService("VirtualInputManager")
-		
-		while Flags.Attack do
+	Looped = true,
+	Callback = function(state) -- Передаём состояние переключателя
+		while state do
+			local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
+			if not ClosestMob then break end -- Если моба нет, выходим из цикла
+			
+			local VirtualInputManager = game:GetService("VirtualInputManager")
 			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0) -- Нажатие ЛКМ
 			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) -- Отпускание ЛКМ
-			wait(0.2) -- 5 раз в секунду (1/5 = 0.2 сек)
+			wait(0.2) -- 5 раз в секунду
+
+			-- Проверяем, отключили ли toggle
+			if not Flags.Attack then break end
 		end
 	end,
 })
+
 
 
 Tab:CreateSection("Aiming")
