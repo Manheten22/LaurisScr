@@ -137,24 +137,15 @@ Tab:CreateToggle({
 	CurrentValue = false,
 	Flag = "Attack",
 	Looped = true,
-	Callback = function(state) -- Передаём состояние переключателя
+	Callback = function()
+		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
+		if not ClosestMob then return end
 		local VirtualInputManager = game:GetService("VirtualInputManager")
-
-		while Flags.Attack and state do
-			local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
-			if not ClosestMob then 
-				wait(0.1) -- Ждём немного перед новой проверкой
-				continue
-			end 
-
-			-- Нажатие и отпускание ЛКМ
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-			wait(0.05) -- Имитация нажатия
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-
-			wait(0.2) -- 5 раз в секунду
+		if not Network then
+		return	
 		end
-	end,
+		VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0) -- Нажатие ЛКМ если моб близко
+		VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) -- Отпускание ЛКМ	end,
 })
 
 
