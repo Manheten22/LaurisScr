@@ -136,7 +136,6 @@ Tab:CreateToggle({
 	Name = ApplyUnsupportedName("⚔ • Auto Attack", GetNetwork() ~= nil),
 	CurrentValue = false,
 	Flag = "Attack",
-	Looped = true,
 	Callback = function()
 		local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
 		if not ClosestMob then return end
