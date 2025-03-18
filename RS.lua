@@ -3,7 +3,7 @@ local getgenv: () -> ({[string]: any}) = getfenv().getgenv
 
 getgenv().ScriptVersion = "v0.0.1"
 getgenv().Changelog = [[
-   4
+  5
 ]]
 
 do
@@ -138,20 +138,25 @@ Tab:CreateToggle({
 	Flag = "Attack",
 	Looped = true,
 	Callback = function(state) -- Передаём состояние переключателя
-		while state do
-			local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
-			if not ClosestMob then break end -- Если моба нет, выходим из цикла
-			
-			local VirtualInputManager = game:GetService("VirtualInputManager")
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0) -- Нажатие ЛКМ
-			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0) -- Отпускание ЛКМ
-			wait(0.2) -- 5 раз в секунду
+		local VirtualInputManager = game:GetService("VirtualInputManager")
 
-			-- Проверяем, отключили ли toggle
-			if not Flags.Attack then break end
+		while Flags.Attack and state do
+			local ClosestMob = GetClosestChild(workspace.Alive:GetChildren(), IsInvalidMob, Flags.Distance.CurrentValue)
+			if not ClosestMob then 
+				wait(0.1) -- Ждём немного перед новой проверкой
+				continue
+			end 
+
+			-- Нажатие и отпускание ЛКМ
+			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
+			wait(0.05) -- Имитация нажатия
+			VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+
+			wait(0.2) -- 5 раз в секунду
 		end
 	end,
 })
+
 
 
 
