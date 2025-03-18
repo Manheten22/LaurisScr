@@ -49,6 +49,11 @@ local GetClosestChild: (Children: {PVInstance}, Callback: ((Child: PVInstance) -
 local CreateFeature: (Tab: Tab, FeatureName: string) -> () = getgenv().CreateFeature
 
 local Success, Network = pcall(require, game:GetService("ReplicatedStorage").Modules.Network)
+if not Success then
+    warn("Failed to load Network module:", Network)
+    Network = nil
+end
+
 print("Network module loaded:", Success, Network)
 
 
