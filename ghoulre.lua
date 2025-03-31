@@ -1049,7 +1049,7 @@ ExitButton.MouseButton1Click:Connect(function()
 end)
 
 UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.Backquote then
+    if not processed and input.KeyCode == Enum.KeyCode.G then
         ScreenGui.Enabled = not ScreenGui.Enabled
         if ScreenGui.Enabled then
             UpdateBossList()
