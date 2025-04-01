@@ -13,7 +13,7 @@ local function notify(title, text)
         Duration = 10
     })
 end
-
+local speeds = 10
 local LocalPlayer = Players.LocalPlayer
 
 -- Тема интерфейса
@@ -93,10 +93,10 @@ VisualFrame.Parent = MainFrame
 --Mobs ESP кнопка
 local espMobsButton = Instance.new("TextButton")
 espMobsButton.Size = UDim2.new(1, -20, 0, 40)
-espMobsButton.Position = UDim2.new(0, 10, 0, -25)
+espMobsButton.Position = UDim2.new(0, 10, 0, 25)
 espMobsButton.BackgroundColor3 = Theme.ElementBackground
 espMobsButton.TextColor3 = Theme.TextColor
-espMobsButton.Text = "MOBS ESP"
+espMobsButton.Text = "Mobs ESP"
 espMobsButton.Font = Enum.Font.GothamBold
 espMobsButton.TextSize = 16
 espMobsButton.Parent = VisualFrame
@@ -108,7 +108,7 @@ espMobsUICorner.Parent = espMobsButton
 --Player ESP кнопка
 local espPlayerButton = Instance.new("TextButton")
 espPlayerButton.Size = UDim2.new(1, -20, 0, 40)
-espPlayerButton.Position = UDim2.new(0, 10, 0, 25)
+espPlayerButton.Position = UDim2.new(0, 10, 0, -25)
 espPlayerButton.BackgroundColor3 = Theme.ElementBackground
 espPlayerButton.TextColor3 = Theme.TextColor
 espPlayerButton.Text = "Player ESP"
@@ -145,32 +145,39 @@ ExitButton.Font = Enum.Font.GothamBold
 ExitButton.TextSize = 16
 ExitButton.Parent = MainFrame
 
-local dragging = false
-local dragStart, startPos
+-- Добавляем слайдер скорости под кнопкой Fly
+local speedBarFrame = Instance.new("Frame")
+speedBarFrame.Size = UDim2.new(1, -20, 0, 20)
+speedBarFrame.Position = UDim2.new(0, 10, 0, 125) -- ниже кнопки Fly (75 + 40 + 10)
+speedBarFrame.BackgroundColor3 = Theme.ElementBackground
+speedBarFrame.Parent = VisualFrame
 
-TopBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
+local speedBarUICorner = Instance.new("UICorner")
+speedBarUICorner.CornerRadius = UDim.new(0, 6)
+speedBarUICorner.Parent = speedBarFrame
 
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-end)
+local speedIndicator = Instance.new("Frame")
+speedIndicator.Size = UDim2.new(speeds/50, 0, 1, 0) -- начальное значение: speeds/50
+speedIndicator.Position = UDim2.new(0, 0, 0, 0)
+speedIndicator.BackgroundColor3 = Theme.AccentColor
+speedIndicator.Parent = speedBarFrame
+
+local speedValueLabel = Instance.new("TextBox")
+speedValueLabel.Size = UDim2.new(0, 40, 1, 0)
+speedValueLabel.Position = UDim2.new(1, -45, 0, 0)
+speedValueLabel.BackgroundTransparency = 1
+speedValueLabel.TextColor3 = Theme.TextColor
+speedValueLabel.Text = tostring(speeds)
+speedValueLabel.Font = Enum.Font.GothamBold
+speedValueLabel.TextSize = 14
+speedValueLabel.ClearTextOnFocus = false 
+speedValueLabel.Parent = speedBarFrame
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Theme.StrokeColor
+stroke.Thickness = 1
+stroke.Parent = speedValueLabel
+
 
 -- ESP система
 local ESP = {
@@ -314,25 +321,26 @@ function ESP.AddPlayerESP(player)
     if not ESP.Enabled.Players or ESP.Tracked.Players[player] then return end
 
     local tracker = {
-        Connections = {},
+        TempConnections = {},  
+        PersistentConnections = {}, 
         Holder = nil,
         Alive = true
     }
     ESP.Tracked.Players[player] = tracker
 
-    local function Cleanup()
+    local function CleanupTemp()
         if tracker.Holder then
             tracker.Holder:Destroy()
             tracker.Holder = nil
         end
-        for _, conn in pairs(tracker.Connections) do
+        for _, conn in pairs(tracker.TempConnections) do
             conn:Disconnect()
         end
-        table.clear(tracker.Connections)
+        tracker.TempConnections = {}
     end
 
     local function SetupCharacter(character)
-        Cleanup()
+        CleanupTemp()
         if not character then return end
         
         local humanoid = character:WaitForChild("Humanoid", 2)
@@ -348,10 +356,9 @@ function ESP.AddPlayerESP(player)
         billboard.Adornee = rootPart
         billboard.Parent = holder
 
-        local renderConn
-        renderConn = RunService.RenderStepped:Connect(function()
+        local renderConn = RunService.RenderStepped:Connect(function()
             if not ESP.Enabled.Players or not holder.Parent then
-                Cleanup()
+                CleanupTemp()
                 return
             end
 
@@ -376,17 +383,20 @@ function ESP.AddPlayerESP(player)
                 billboard.Enabled = false
             end
         end)
-
-        table.insert(tracker.Connections, renderConn)
+        table.insert(tracker.TempConnections, renderConn)
     end
 
-    table.insert(tracker.Connections, player.CharacterAdded:Connect(SetupCharacter))
-    table.insert(tracker.Connections, player.CharacterRemoving:Connect(Cleanup))
+    local charAddedConn = player.CharacterAdded:Connect(SetupCharacter)
+    table.insert(tracker.PersistentConnections, charAddedConn)
+    
+    local charRemovingConn = player.CharacterRemoving:Connect(CleanupTemp)
+    table.insert(tracker.PersistentConnections, charRemovingConn)
     
     if player.Character then
         SetupCharacter(player.Character)
     end
 end
+
 
 function ESP.TogglePlayers(enable)
     ESP.Enabled.Players = enable
@@ -404,7 +414,12 @@ function ESP.TogglePlayers(enable)
             if tracker.Holder then
                 tracker.Holder:Destroy()
             end
-            for _, conn in pairs(tracker.Connections) do
+            -- Отключаем все временные подключения
+            for _, conn in pairs(tracker.TempConnections or {}) do
+                conn:Disconnect()
+            end
+            -- Отключаем все постоянные подключения
+            for _, conn in pairs(tracker.PersistentConnections or {}) do
                 conn:Disconnect()
             end
         end
@@ -415,6 +430,145 @@ function ESP.TogglePlayers(enable)
         end
     end
 end
+
+local scriptActive = true
+
+-- Fly System
+local speaker = Players.LocalPlayer
+local flyingParts = {}
+local flightConnection  -- для цикла Heartbeat
+local nowe = false
+
+local function toggleFlight()
+    if not scriptActive then return end
+    nowe = not nowe
+    local chr = speaker.Character or speaker.CharacterAdded:Wait()
+    local hum = chr:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return end
+
+    if nowe then
+        -- Включаем режим полёта
+        hum.PlatformStand = true
+        
+        local bg = Instance.new("BodyGyro")
+        bg.P = 20000
+        bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bg.Parent = chr.HumanoidRootPart
+
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new()
+        bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+        bv.Parent = chr.HumanoidRootPart
+
+        table.insert(flyingParts, bg)
+        table.insert(flyingParts, bv)
+
+        flightConnection = RunService.Heartbeat:Connect(function()
+            if not scriptActive or not nowe or not chr:FindFirstChild("HumanoidRootPart") then return end
+            
+            local camCF = workspace.CurrentCamera.CFrame
+            local moveVec = Vector3.new(
+                UserInputService:IsKeyDown(Enum.KeyCode.D) and 1 or UserInputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0,
+                UserInputService:IsKeyDown(Enum.KeyCode.Space) and 1 or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and -1 or 0,
+                UserInputService:IsKeyDown(Enum.KeyCode.S) and -1 or UserInputService:IsKeyDown(Enum.KeyCode.W) and 1 or 0
+            )
+            local newVelocity = (camCF.LookVector * moveVec.Z + 
+                                 camCF.RightVector * moveVec.X + 
+                                 camCF.UpVector * moveVec.Y) * speeds * 10
+            bv.Velocity = newVelocity
+            bg.CFrame = camCF
+        end)
+    else
+        -- Выключаем режим полёта
+        hum.PlatformStand = false
+        hum:ChangeState(Enum.HumanoidStateType.Landed)
+        
+        if flightConnection then
+            flightConnection:Disconnect()
+            flightConnection = nil
+        end
+        
+        for _, part in pairs(flyingParts) do
+            if part and part.Parent then
+                part:Destroy()
+            end
+        end
+        flyingParts = {}
+    end
+end
+
+-- Подключение для переключения fly по H (однократно!)
+local flightToggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.H then
+        toggleFlight()
+    end
+end)
+
+-- Логика перетаскивания слайдера и ручного ввода скорости
+local draggingSpeed = false
+
+speedBarFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingSpeed = true
+    end
+end)
+
+speedBarFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingSpeed = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingSpeed and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local pos = input.Position.X - speedBarFrame.AbsolutePosition.X
+        local barWidth = speedBarFrame.AbsoluteSize.X
+        local newSpeed = math.clamp(math.floor((pos / barWidth) * 50), 1, 50)
+        speeds = newSpeed
+        speedIndicator.Size = UDim2.new(newSpeed/50, 0, 1, 0)
+        speedValueLabel.Text = tostring(newSpeed)
+    end
+end)
+
+local dragging = false
+local dragStart, startPos
+
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+speedValueLabel.FocusLost:Connect(function(enterPressed)
+    local enteredText = speedValueLabel.Text 
+    local num = tonumber(enteredText)
+    if num then
+        speeds = math.clamp(num, 1, 50)
+        speedValueLabel.Text = tostring(speeds)
+        speedIndicator.Size = UDim2.new(speeds/50, 0, 1, 0)
+    else
+        speedValueLabel.Text = tostring(speeds)
+    end
+end)
+
 espMobsButton.MouseButton1Click:Connect(function()
     ESP.ToggleMobs(not ESP.Enabled.Mobs)
 end)
@@ -429,6 +583,7 @@ CloseButton.MouseButton1Click:Connect(function()
 end)
 
 ExitButton.MouseButton1Click:Connect(function()
+    -- Отключаем ESP-систему
     ESP.ToggleMobs(false)
     ESP.TogglePlayers(false)
     
@@ -443,6 +598,21 @@ ExitButton.MouseButton1Click:Connect(function()
         ESP.Connections = {}
     end
     
+    -- Если режим полёта активен, выключаем его
+    if nowe then
+        toggleFlight()
+    end
+    
+    -- Отключаем обработчик переключения fly (H key)
+    if flightToggleConnection then
+        flightToggleConnection:Disconnect()
+        flightToggleConnection = nil
+    end
+    
+    -- Выключаем fly-систему (больше не реагировать)
+    scriptActive = false
+    
+    -- Удаляем интерфейс
     if ScreenGui then
         ScreenGui:Destroy()
     end
@@ -451,93 +621,5 @@ end)
 UserInputService.InputBegan:Connect(function(input, processed)
     if not processed and input.KeyCode == Enum.KeyCode.G then
         ScreenGui.Enabled = not ScreenGui.Enabled
-    end
-end)
-
--- Fly System
-local speaker = game:GetService("Players").LocalPlayer
-local flyingParts = {}
-local connection
-local nowe = false
-local speeds = 10
-
-local function toggleFlight()
-    nowe = not nowe
-    local chr = speaker.Character or speaker.CharacterAdded:Wait()
-    local hum = chr:FindFirstChildOfClass("Humanoid")
-    
-    if not hum or hum.Health <= 0 then return end
-
-    if nowe then
-        -- Активация полета
-        hum.PlatformStand = true
-        
-        -- Создаем объекты для полета
-        local bg = Instance.new("BodyGyro")
-        bg.P = 20000
-        bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-        bg.Parent = chr.HumanoidRootPart
-
-        local bv = Instance.new("BodyVelocity")
-        bv.Velocity = Vector3.new()
-        bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
-        bv.Parent = chr.HumanoidRootPart
-
-        table.insert(flyingParts, bg)
-        table.insert(flyingParts, bv)
-
-        -- Подключаем обработчик движения
-        connection = RunService.Heartbeat:Connect(function()
-            if not nowe or not chr:FindFirstChild("HumanoidRootPart") then return end
-            
-            local camCF = workspace.CurrentCamera.CFrame
-            local moveVec = Vector3.new(
-                UserInputService:IsKeyDown(Enum.KeyCode.D) and 1 or UserInputService:IsKeyDown(Enum.KeyCode.A) and -1 or 0,
-                UserInputService:IsKeyDown(Enum.KeyCode.Space) and 1 or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and -1 or 0,
-                UserInputService:IsKeyDown(Enum.KeyCode.S) and -1 or UserInputService:IsKeyDown(Enum.KeyCode.W) and 1 or 0
-            )
-
-            local newVelocity = (camCF.LookVector * moveVec.Z + 
-                               camCF.RightVector * moveVec.X + 
-                               camCF.UpVector * moveVec.Y) * speeds * 10
-                               
-            bv.Velocity = newVelocity
-            bg.CFrame = camCF
-        end)
-    else
-        -- Деактивация полета
-        hum.PlatformStand = false
-        hum:ChangeState(Enum.HumanoidStateType.Landed)
-        
-        -- Удаляем созданные объекты
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
-        
-        for _, part in pairs(flyingParts) do
-            if part and part.Parent then
-                part:Destroy()
-            end
-        end
-        flyingParts = {}
-    end
-end
-
--- Обработчик клавиши "-"
-UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.H then
-        toggleFlight()
-    end
-end)
-
--- Обработчик изменения скорости
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    
-    if input.KeyCode == Enum.KeyCode.Equals then
-        speeds = math.min(speeds + 1, 20)
-    elseif input.KeyCode == Enum.KeyCode.Hyphen then
-        speeds = math.max(speeds - 1, 1)
     end
 end)
