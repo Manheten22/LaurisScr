@@ -224,16 +224,28 @@ function ESP.ToggleMobs(enable)
     espMobsButton.BackgroundColor3 = enable and Theme.AccentColor or Theme.ElementBackground
 
     if enable then
+        local Players = game:GetService("Players")
+        
+        -- Функция для проверки, является ли моб персонажем игрока
+        local function IsPlayerCharacter(mob)
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character and player.Character == mob then
+                    return true
+                end
+            end
+            return false
+        end
+
         -- Обработка существующих мобов
         for _, mob in ipairs(Workspace.Entities:GetChildren()) do
-            if mob:GetAttribute("NPC") then
+            if not mob:GetAttribute("NPC") and not IsPlayerCharacter(mob) then
                 ESP.AddMobESP(mob)
             end
         end
         
         -- Подключение новых мобов
         ESP.Connections.MobAdded = Workspace.Entities.ChildAdded:Connect(function(mob)
-            if mob:GetAttribute("NPC") then
+            if not mob:GetAttribute("NPC") and not IsPlayerCharacter(mob) then
                 ESP.AddMobESP(mob)
             end
         end)
@@ -623,3 +635,4 @@ UserInputService.InputBegan:Connect(function(input, processed)
         ScreenGui.Enabled = not ScreenGui.Enabled
     end
 end)
+
