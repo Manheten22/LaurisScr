@@ -4,17 +4,43 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local StarterGui = game:GetService("StarterGui")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local HttpService = game:GetService("HttpService")
+local DATA_KEY = "LauriaHub_Keybinds"
+local CONFIG_PATH = DATA_KEY..".cfg"
 
 -- Настройка уведомлений
 local function notify(title, text)
     StarterGui:SetCore("SendNotification", {
         Title = title,
         Text = text,
-        Duration = 10
+        Duration = 5
     })
 end
-local speeds = 10
+
 local LocalPlayer = Players.LocalPlayer
+
+getgenv().Changelog = [[
+[v1.1.0] - Latest Update
+- Flight system and flight speed adjustment added
+- Optimized ESP functionality with bosses
+- Update Log added
+- Keybind system added
+]]
+
+---------------------------
+-- Настройки --
+---------------------------
+local speeds = 10
+local autofarmspeed = 150           -- скорость движения в студиях/сек
+local gotopartDelay = 0.1   -- задержка перед tween
+local buttonClickDelay = 0.2 -- Задержка между нажатиями кнопок
+local autoFarmEnabled = false
+local activeTween
+local lootbagConnection
+local NONE_KEY = Enum.KeyCode.Unknown -- Специальное значение для "None"
+local flyKeyBtn, playerEspKeyBtn, mobEspKeyBtn, menuKeyBtn
 
 -- Тема интерфейса
 local Theme = {
@@ -33,10 +59,10 @@ local Theme = {
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "BossTrackerUI"
 ScreenGui.Parent = CoreGui
-ScreenGui.Enabled = false
+ScreenGui.Enabled = true
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 320, 0, 330)
+MainFrame.Size = UDim2.new(0, 370, 0, 330)
 MainFrame.Position = UDim2.new(0.5, -160, 0.5, -125)
 MainFrame.BackgroundColor3 = Theme.Background
 MainFrame.BorderSizePixel = 0
@@ -83,23 +109,209 @@ local closeBtnUICorner = Instance.new("UICorner")
 closeBtnUICorner.CornerRadius = UDim.new(0, 6)
 closeBtnUICorner.Parent = CloseButton
 
--- Контент
-local VisualFrame = Instance.new("Frame")
-VisualFrame.Size = UDim2.new(1, -10, 1, -110)
-VisualFrame.Position = UDim2.new(0, 5, 0, 80)
-VisualFrame.BackgroundTransparency = 1
-VisualFrame.Parent = MainFrame
+local SettingsButton = Instance.new("TextButton")
+SettingsButton.Size = UDim2.new(0, 24, 0, 24)
+SettingsButton.Position = UDim2.new(1, -60, 0.5, -12)
+SettingsButton.BackgroundColor3 = Theme.Topbar
+SettingsButton.TextColor3 = Color3.new(1, 1, 1)
+SettingsButton.Text = "⚙️"
+SettingsButton.Font = Enum.Font.GothamBold
+SettingsButton.TextSize = 20
+SettingsButton.Parent = TopBar
+
+local settingsBtnUICorner = Instance.new("UICorner")
+settingsBtnUICorner.CornerRadius = UDim.new(0, 6)
+settingsBtnUICorner.Parent = SettingsButton
+
+--Кнопки разделы меню
+local TabButtonsContainer = Instance.new("Frame")
+TabButtonsContainer.Size = UDim2.new(1, 0, 0, 40)
+TabButtonsContainer.Position = UDim2.new(0, 0, 0, 45)
+TabButtonsContainer.BackgroundTransparency = 1
+TabButtonsContainer.Parent = MainFrame
+
+local UIListLayout_Tabs = Instance.new("UIListLayout")
+UIListLayout_Tabs.FillDirection = Enum.FillDirection.Horizontal
+UIListLayout_Tabs.Padding = UDim.new(0, 5)
+UIListLayout_Tabs.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout_Tabs.Parent = TabButtonsContainer
+
+local MainMenuTabButton = Instance.new("TextButton")
+MainMenuTabButton.Size = UDim2.new(0, 80, 0, 30)
+MainMenuTabButton.BackgroundColor3 = Theme.AccentColor
+MainMenuTabButton.TextColor3 = Color3.new(1, 1, 1)
+MainMenuTabButton.Text = "Menu"
+MainMenuTabButton.Font = Enum.Font.GothamBold
+MainMenuTabButton.TextSize = 14
+MainMenuTabButton.Parent = TabButtonsContainer
+
+local tabBtnUICorner1 = Instance.new("UICorner")
+tabBtnUICorner1.CornerRadius = UDim.new(0, 6)
+tabBtnUICorner1.Parent = MainMenuTabButton
+
+
+
+local AutoFarmTabButton = Instance.new("TextButton")
+AutoFarmTabButton.Size = UDim2.new(0, 80, 0, 30)
+AutoFarmTabButton.BackgroundColor3 = Theme.ElementBackground
+AutoFarmTabButton.TextColor3 = Theme.TextColor
+AutoFarmTabButton.Text = "Autofarm"
+AutoFarmTabButton.Font = Enum.Font.GothamBold
+AutoFarmTabButton.TextSize = 14
+AutoFarmTabButton.Parent = TabButtonsContainer
+
+local tabBtnUICorner2 = Instance.new("UICorner")
+tabBtnUICorner2.CornerRadius = UDim.new(0, 6)
+tabBtnUICorner2.Parent = AutoFarmTabButton
+
+
+local EspTabButton = Instance.new("TextButton")
+EspTabButton.Size = UDim2.new(0, 80, 0, 30)
+EspTabButton.BackgroundColor3 = Theme.ElementBackground
+EspTabButton.TextColor3 = Theme.TextColor
+EspTabButton.Text = "Visual"
+EspTabButton.Font = Enum.Font.GothamBold
+EspTabButton.TextSize = 14
+EspTabButton.Parent = TabButtonsContainer
+
+local tabBtnUICorner2 = Instance.new("UICorner")
+tabBtnUICorner2.CornerRadius = UDim.new(0, 6)
+tabBtnUICorner2.Parent = EspTabButton
+
+
+local MovementTabButton = Instance.new("TextButton")
+MovementTabButton.Size = UDim2.new(0, 80, 0, 30)
+MovementTabButton.BackgroundColor3 = Theme.ElementBackground
+MovementTabButton.TextColor3 = Theme.TextColor
+MovementTabButton.Text = "Movement"
+MovementTabButton.Font = Enum.Font.GothamBold
+MovementTabButton.TextSize = 14
+MovementTabButton.Parent = TabButtonsContainer
+
+local tabBtnUICorner2 = Instance.new("UICorner")
+tabBtnUICorner2.CornerRadius = UDim.new(0, 6)
+tabBtnUICorner2.Parent = MovementTabButton
+
+--контент
+local MainFrameConetent = Instance.new("Frame")
+MainFrameConetent.Size = UDim2.new(1, -10, 1, -10)
+MainFrameConetent.Position = UDim2.new(0, 5, 0, 80)
+MainFrameConetent.BackgroundTransparency = 1
+MainFrameConetent.Parent = MainFrame
+
+local AutoFarmFrame = Instance.new("Frame")
+AutoFarmFrame.Size = UDim2.new(1, -10, 1, -110)
+AutoFarmFrame.Position = UDim2.new(0, 5, 0, 80)
+AutoFarmFrame.BackgroundTransparency = 1
+AutoFarmFrame.Visible = false
+AutoFarmFrame.Parent = MainFrame
+
+local EspFrame = Instance.new("Frame")
+EspFrame.Size = UDim2.new(1, -10, 1, -110)
+EspFrame.Position = UDim2.new(0, 5, 0, 80)
+EspFrame.BackgroundTransparency = 1
+EspFrame.Visible = false
+EspFrame.Parent = MainFrame
+
+local MovementFrame = Instance.new("Frame")
+MovementFrame.Size = UDim2.new(1, -10, 1, -110)
+MovementFrame.Position = UDim2.new(0, 5, 0, 80)
+MovementFrame.BackgroundTransparency = 1
+MovementFrame.Visible = false
+MovementFrame.Parent = MainFrame
+
+local SettingsFrame = Instance.new("Frame")
+SettingsFrame.Size = UDim2.new(1, -10, 1, -110)
+SettingsFrame.Position = UDim2.new(0, 5, 0, 80)
+SettingsFrame.BackgroundTransparency = 1
+SettingsFrame.Visible = false
+SettingsFrame.Parent = MainFrame
+
+    -- В секции создания SettingsFrame добавьте:
+local KeybindsFrame = Instance.new("Frame")
+KeybindsFrame.Size = UDim2.new(1, -20, 0, 150)
+KeybindsFrame.Position = UDim2.new(0, 10, 0, 10)
+KeybindsFrame.BackgroundTransparency = 1
+KeybindsFrame.Parent = SettingsFrame
+
+local keybindsLayout = Instance.new("UIListLayout")
+keybindsLayout.Padding = UDim.new(0, 5)
+keybindsLayout.Parent = KeybindsFrame
+
+------------------
+
+-- Контейнер для логов
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Size = UDim2.new(1, -10, 1, -50) -- Уменьшили высоту для заголовка
+ScrollFrame.Position = UDim2.new(0, 5, 0, 40) -- Сдвинули вниз
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.ScrollBarThickness = 5
+ScrollFrame.Parent = MainFrameConetent
+
+-- Заголовок Update Log
+local UpdateLogLabel = Instance.new("TextLabel")
+UpdateLogLabel.Size = UDim2.new(1, -10, 0, 30)
+UpdateLogLabel.Position = UDim2.new(0, 5, 0, 0)
+UpdateLogLabel.BackgroundTransparency = 1
+UpdateLogLabel.TextColor3 = Theme.TextColor
+UpdateLogLabel.Text = "Update Log"
+UpdateLogLabel.Font = Enum.Font.GothamBold
+UpdateLogLabel.TextSize = 20
+UpdateLogLabel.TextXAlignment = Enum.TextXAlignment.Left
+UpdateLogLabel.Parent = MainFrameConetent
+
+-- Разделительная линия
+local Divider = Instance.new("Frame")
+Divider.Size = UDim2.new(1, -10, 0, 1)
+Divider.Position = UDim2.new(0, 5, 0, 30)
+Divider.BackgroundColor3 = Theme.ElementBackground
+Divider.BorderSizePixel = 0
+Divider.Parent = MainFrameConetent
+
+-- Текст логов (остается без изменений)
+local LogsLabel = Instance.new("TextLabel")
+LogsLabel.Size = UDim2.new(1, -5, 1, 0)
+LogsLabel.Position = UDim2.new(0, 5, 0, 0)
+LogsLabel.BackgroundTransparency = 1
+LogsLabel.TextColor3 = Theme.TextColor
+LogsLabel.Text = getgenv().Changelog
+LogsLabel.Font = Enum.Font.Gotham
+LogsLabel.TextSize = 16
+LogsLabel.TextXAlignment = Enum.TextXAlignment.Left
+LogsLabel.TextYAlignment = Enum.TextYAlignment.Top
+LogsLabel.TextWrapped = true
+LogsLabel.Parent = ScrollFrame
+
+-- Автоматический размер для прокрутки
+LogsLabel:GetPropertyChangedSignal("TextBounds"):Connect(function()
+    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, LogsLabel.TextBounds.Y + 20)
+end)
+
+--Autofarm кнопка
+local AutoFarmButton = Instance.new("TextButton")
+AutoFarmButton.Size = UDim2.new(1, -20, 0, 40)
+AutoFarmButton.Position = UDim2.new(0, 10, 0, 10)
+AutoFarmButton.BackgroundColor3 = Theme.ElementBackground
+AutoFarmButton.TextColor3 = Theme.TextColor
+AutoFarmButton.Text = "Autofarm"
+AutoFarmButton.Font = Enum.Font.GothamBold
+AutoFarmButton.TextSize = 16
+AutoFarmButton.Parent = AutoFarmFrame
+
+local espPlayerUICorner = Instance.new("UICorner")
+espPlayerUICorner.CornerRadius = UDim.new(0, 6)
+espPlayerUICorner.Parent = AutoFarmButton
 
 --Mobs ESP кнопка
 local espMobsButton = Instance.new("TextButton")
 espMobsButton.Size = UDim2.new(1, -20, 0, 40)
-espMobsButton.Position = UDim2.new(0, 10, 0, 25)
+espMobsButton.Position = UDim2.new(0, 10, 0, 60)
 espMobsButton.BackgroundColor3 = Theme.ElementBackground
 espMobsButton.TextColor3 = Theme.TextColor
 espMobsButton.Text = "Mobs ESP"
 espMobsButton.Font = Enum.Font.GothamBold
 espMobsButton.TextSize = 16
-espMobsButton.Parent = VisualFrame
+espMobsButton.Parent = EspFrame
 
 local espMobsUICorner = Instance.new("UICorner")
 espMobsUICorner.CornerRadius = UDim.new(0, 6)
@@ -108,13 +320,13 @@ espMobsUICorner.Parent = espMobsButton
 --Player ESP кнопка
 local espPlayerButton = Instance.new("TextButton")
 espPlayerButton.Size = UDim2.new(1, -20, 0, 40)
-espPlayerButton.Position = UDim2.new(0, 10, 0, -25)
+espPlayerButton.Position = UDim2.new(0, 10, 0, 10)
 espPlayerButton.BackgroundColor3 = Theme.ElementBackground
 espPlayerButton.TextColor3 = Theme.TextColor
 espPlayerButton.Text = "Player ESP"
 espPlayerButton.Font = Enum.Font.GothamBold
 espPlayerButton.TextSize = 16
-espPlayerButton.Parent = VisualFrame
+espPlayerButton.Parent = EspFrame
 
 local espPlayerUICorner = Instance.new("UICorner")
 espPlayerUICorner.CornerRadius = UDim.new(0, 6)
@@ -123,13 +335,13 @@ espPlayerUICorner.Parent = espPlayerButton
 --Fly кнопка
 local flyButton = Instance.new("TextButton")
 flyButton.Size = UDim2.new(1, -20, 0, 40)
-flyButton.Position = UDim2.new(0, 10, 0, 75)
+flyButton.Position = UDim2.new(0, 10, 0, 10)
 flyButton.BackgroundColor3 = Theme.ElementBackground
 flyButton.TextColor3 = Theme.TextColor
-flyButton.Text = "Fly on H button"
+flyButton.Text = "Fly"
 flyButton.Font = Enum.Font.GothamBold
 flyButton.TextSize = 14
-flyButton.Parent = VisualFrame
+flyButton.Parent = MovementFrame
 
 local flyUICorner = Instance.new("UICorner")
 flyUICorner.CornerRadius = UDim.new(0, 6)
@@ -145,12 +357,13 @@ ExitButton.Font = Enum.Font.GothamBold
 ExitButton.TextSize = 16
 ExitButton.Parent = MainFrame
 
+
 -- Добавляем слайдер скорости под кнопкой Fly
 local speedBarFrame = Instance.new("Frame")
 speedBarFrame.Size = UDim2.new(1, -20, 0, 20)
-speedBarFrame.Position = UDim2.new(0, 10, 0, 125) -- ниже кнопки Fly (75 + 40 + 10)
+speedBarFrame.Position = UDim2.new(0, 10, 0, 60) -- ниже кнопки Fly (75 + 40 + 10)
 speedBarFrame.BackgroundColor3 = Theme.ElementBackground
-speedBarFrame.Parent = VisualFrame
+speedBarFrame.Parent = MovementFrame
 
 local speedBarUICorner = Instance.new("UICorner")
 speedBarUICorner.CornerRadius = UDim.new(0, 6)
@@ -178,6 +391,155 @@ stroke.Color = Theme.StrokeColor
 stroke.Thickness = 1
 stroke.Parent = speedValueLabel
 
+
+-- Добавьте вызов загрузки после объявления Keybinds
+local Keybinds = {
+    Fly = Enum.KeyCode.H,
+    PlayerESP = Enum.KeyCode.P,
+    MobESP = Enum.KeyCode.M,
+    Menu = Enum.KeyCode.G
+}
+
+
+
+local function saveKeybinds()
+    print("[SAVE] Starting save process...")
+    local dataToSave = {}
+    for key, keyCode in pairs(Keybinds) do
+        dataToSave[key] = (keyCode == NONE_KEY) and "None" or keyCode.Name
+        print(string.format("[SAVE] Key: %s, Value: %s", key, dataToSave[key]))
+    end
+    
+    local success, err = pcall(function()
+        local json = HttpService:JSONEncode(dataToSave)
+        writefile(CONFIG_PATH, json)
+        print("[SAVE] Successfully saved config to:", CONFIG_PATH)
+    end)
+    
+    if not success then
+        local msg = "Failed to save keybinds: "..tostring(err)
+        print("[SAVE ERROR]", msg)
+        notify("Save Error", msg)
+    end
+end
+local function loadKeybinds()
+    print("[LOAD] Starting load process...")
+    local function setDefault()
+        print("[LOAD] Setting default keybinds")
+        Keybinds.Fly = Enum.KeyCode.H
+        Keybinds.PlayerESP = Enum.KeyCode.P
+        Keybinds.MobESP = Enum.KeyCode.M
+        Keybinds.Menu = Enum.KeyCode.G
+        saveKeybinds()
+    end
+    
+    -- Проверка существования файла с обработкой ошибок
+    local fileExists = pcall(function() return readfile(CONFIG_PATH) end)
+    if not fileExists then
+        print("[LOAD] Config file not found, creating default")
+        setDefault()
+        return
+    end
+
+    print("[LOAD] Reading config file...")
+    local success, data = pcall(function()
+        local content = readfile(CONFIG_PATH)
+        print("[LOAD] Raw config content:", content)
+        return HttpService:JSONDecode(content)
+    end)
+    
+    if not success then
+        print("[LOAD ERROR] Corrupted config:", data)
+        notify("Load Error", "Corrupted config, using defaults")
+        setDefault()
+        return
+    end
+
+    print("[LOAD] Loaded config data:")
+    for k,v in pairs(data) do print(" ", k, v) end
+
+    -- Валидация и применение настроек
+    for key, value in pairs(data) do
+        if Keybinds[key] ~= nil then
+            local keyCode = (value == "None") and NONE_KEY or Enum.KeyCode[value]
+            if keyCode then
+                Keybinds[key] = keyCode
+                print(string.format("[LOAD] Set %s = %s", key, keyCode.Name))
+            else
+                warn(string.format("[LOAD] Invalid keybind: %s for %s", value, key))
+            end
+        end
+    end
+    
+    -- Защищенное обновление интерфейса
+    local function safeUpdateButton(button, key)
+        if Keybinds[key] and button then
+            local name = Keybinds[key].Name
+            button.Text = name ~= "Unknown" and "["..name.."]" or "[None]"
+            print(string.format("[LOAD] Updated %s button: %s", key, button.Text))
+        else
+            warn("[LOAD ERROR] Missing keybind or button for:", key)
+        end
+    end
+
+    safeUpdateButton(flyKeyBtn, "Fly")
+    safeUpdateButton(playerEspKeyBtn, "PlayerESP")
+    safeUpdateButton(mobEspKeyBtn, "MobESP")
+    safeUpdateButton(menuKeyBtn, "Menu")
+end
+
+
+-- Функция создания элементов кейбиндов
+local function CreateKeybindRow(name, defaultKey)
+    local defaultKey = Keybinds[keyName] or NONE_KEY
+    local buttonText = defaultKey.Name ~= "Unknown" and "["..defaultKey.Name.."]" or "[None]"
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 25)
+    row.BackgroundTransparency = 1
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.6, 0, 1, 0)
+    label.Text = name
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.TextColor3 = Theme.TextColor
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.BackgroundTransparency = 1
+    label.Parent = row
+    
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.3, 0, 1, 0)
+    button.Position = UDim2.new(0.7, 0, 0, 0)
+    button.BackgroundColor3 = Theme.ElementBackground
+    button.TextColor3 = Theme.TextColor
+    button.Text = buttonText
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.Parent = row
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 4)
+    corner.Parent = button
+    
+    return button, row
+end
+
+
+local function InitializeKeybindButtons()
+    local function createRow(name, key)
+        local btn, row = CreateKeybindRow(name, key)
+        row.Parent = KeybindsFrame
+        return btn
+    end
+
+    flyKeyBtn = createRow("Fly Key", "Fly")
+    playerEspKeyBtn = createRow("Player ESP Key", "PlayerESP")
+    mobEspKeyBtn = createRow("Mob ESP Key", "MobESP")
+    menuKeyBtn = createRow("Menu Key", "Menu")
+end
+
+InitializeKeybindButtons()
+loadKeybinds()
 
 -- ESP система
 local ESP = {
@@ -218,18 +580,22 @@ local function CreateBillboard()
     return billboard
 end
 
--- Основные функции ESP
+notify("Luaria Hub", "Setup")   
+
+-- Основные функции ESP 
 function ESP.ToggleMobs(enable)
     ESP.Enabled.Mobs = enable
     espMobsButton.BackgroundColor3 = enable and Theme.AccentColor or Theme.ElementBackground
 
     if enable then
+    print("mobs esp enable")
         local Players = game:GetService("Players")
         
         -- Функция для проверки, является ли моб персонажем игрока
         local function IsPlayerCharacter(mob)
             for _, player in ipairs(Players:GetPlayers()) do
                 if player.Character and player.Character == mob then
+                print("is player")
                     return true
                 end
             end
@@ -238,7 +604,23 @@ function ESP.ToggleMobs(enable)
 
         -- Обработка существующих мобов
         for _, mob in ipairs(Workspace.Entities:GetChildren()) do
+            if mob:GetAttribute("NPC") and not IsPlayerCharacter(mob) then
+                print("Added mob already")
+                ESP.AddMobESP(mob)
+            end
+        end
+        
+        -- Подключение новых мобов
+        ESP.Connections.MobAdded = Workspace.Entities.ChildAdded:Connect(function(mob)
+            if mob:GetAttribute("NPC") and not IsPlayerCharacter(mob) then
+                print("Added a new mob")
+                ESP.AddMobESP(mob)
+            end
+        end)
+
+        for _, mob in ipairs(Workspace.Entities:GetChildren()) do
             if not mob:GetAttribute("NPC") and not IsPlayerCharacter(mob) then
+                print("Added mob already")
                 ESP.AddMobESP(mob)
             end
         end
@@ -246,6 +628,7 @@ function ESP.ToggleMobs(enable)
         -- Подключение новых мобов
         ESP.Connections.MobAdded = Workspace.Entities.ChildAdded:Connect(function(mob)
             if not mob:GetAttribute("NPC") and not IsPlayerCharacter(mob) then
+                print("Added a new mob")
                 ESP.AddMobESP(mob)
             end
         end)
@@ -459,6 +842,7 @@ local function toggleFlight()
     if not hum or hum.Health <= 0 then return end
 
     if nowe then
+        flyButton.BackgroundColor3 = enable and Theme.AccentColor or Theme.ElementBackground
         -- Включаем режим полёта
         hum.PlatformStand = true
         
@@ -581,6 +965,122 @@ speedValueLabel.FocusLost:Connect(function(enterPressed)
     end
 end)
 
+local function SwitchTab(tabName)
+    currentTab = tabName
+    MainFrameConetent.Visible = tabName == "menu"
+    AutoFarmFrame.Visible = tabName == "autofarm"
+    EspFrame.Visible = tabName == "esp"
+    MovementFrame.Visible = tabName == "movement"
+    SettingsFrame.Visible = tabName == "settings"
+        
+    MainMenuTabButton.BackgroundColor3 = tabName == "menu" and Theme.AccentColor or Theme.ElementBackground
+    AutoFarmTabButton.BackgroundColor3 = tabName == "autofarm" and Theme.AccentColor or Theme.ElementBackground
+    MovementTabButton.BackgroundColor3 = tabName == "movement" and Theme.AccentColor or Theme.ElementBackground
+    EspTabButton.BackgroundColor3 = tabName == "esp" and Theme.AccentColor or Theme.ElementBackground
+
+
+    ContentFrame.CanvasPosition = Vector2.new(0, 0)
+end
+
+    local listening = false
+local currentKeybind = nil
+
+local function UpdateKeybinds()
+    -- Обновляем обработчики для новых кейбиндов
+    if flightToggleConnection then
+        flightToggleConnection:Disconnect()
+    end
+    
+    flightToggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
+        if not processed and input.KeyCode == Keybinds.Fly then
+            toggleFlight()
+        end
+    end)
+end
+
+local function ListenForKey(keybindName, button)
+    listening = true
+    currentKeybind = keybindName
+    button.Text = "[...]"
+    
+    local connection
+    connection = UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        
+        -- Обработка Backspace для установки None
+        if input.KeyCode == Enum.KeyCode.Backspace then
+            Keybinds[keybindName] = NONE_KEY
+            saveKeybinds()
+            button.Text = "[None]"
+            listening = false
+            connection:Disconnect()
+            return
+        end
+        
+        -- Обработка отмены
+        if input.KeyCode == Enum.KeyCode.Escape then
+            button.Text = "["..Keybinds[keybindName].Name.."]"
+            listening = false
+            connection:Disconnect()
+            return
+        end
+        
+        -- Обработка клавиш
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            Keybinds[keybindName] = input.KeyCode
+            saveKeybinds()
+            UpdateKeybinds()
+            button.Text = "["..input.KeyCode.Name.."]"
+            listening = false
+            connection:Disconnect()
+        end
+    end)
+end
+
+
+
+flyKeyBtn.MouseButton1Click:Connect(function()
+    if not listening then ListenForKey("Fly", flyKeyBtn) end
+end)
+
+playerEspKeyBtn.MouseButton1Click:Connect(function()
+    if not listening then ListenForKey("PlayerESP", playerEspKeyBtn) end
+    print("player esp binded")
+end)
+
+mobEspKeyBtn.MouseButton1Click:Connect(function()
+    if not listening then ListenForKey("MobESP", mobEspKeyBtn) end
+    print("mobs esp binded")
+end)
+
+menuKeyBtn.MouseButton1Click:Connect(function()
+    if not listening then ListenForKey("Menu", menuKeyBtn) end
+end)
+
+MainMenuTabButton.MouseButton1Click:Connect(function()
+    SwitchTab("menu")
+end)
+
+AutoFarmTabButton.MouseButton1Click:Connect(function()
+    SwitchTab("autofarm")
+end)
+
+EspTabButton.MouseButton1Click:Connect(function()
+    SwitchTab("esp")
+end)
+
+MovementTabButton.MouseButton1Click:Connect(function()
+    SwitchTab("movement")
+end)
+
+SettingsButton.MouseButton1Click:Connect(function()
+    SwitchTab("settings")
+end)
+
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui.Enabled = false
+end)
+
 espMobsButton.MouseButton1Click:Connect(function()
     ESP.ToggleMobs(not ESP.Enabled.Mobs)
 end)
@@ -589,9 +1089,9 @@ espPlayerButton.MouseButton1Click:Connect(function()
     ESP.TogglePlayers(not ESP.Enabled.Players)
 end)
 
--- Обработчики интерфейса
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui.Enabled = false
+flyButton.MouseButton1Click:Connect(function()
+    toggleFlight()
+    flyKeyBtn.Text = "["..Keybinds.Fly.Name.."]"
 end)
 
 ExitButton.MouseButton1Click:Connect(function()
@@ -630,9 +1130,21 @@ ExitButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- Обновляем обработчик открытия меню
 UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.G then
+    if not processed and input.KeyCode == Keybinds.Menu then
         ScreenGui.Enabled = not ScreenGui.Enabled
     end
 end)
 
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Keybinds.PlayerESP then
+        ESP.TogglePlayers(not ESP.Enabled.Players)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Keybinds.MobESP then
+        ESP.ToggleMobs(not ESP.Enabled.Mobs)
+    end
+end)
