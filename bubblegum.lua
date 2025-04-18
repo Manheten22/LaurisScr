@@ -25,7 +25,9 @@ local eggTypes = {
     "nightmare-egg",
     "void-egg",
     "aura-egg",
-	"rainbow-egg"
+	"rainbow-egg",
+    "event-1",
+    "event-2"
 }
 
 local eggSettings = {
@@ -44,11 +46,22 @@ local eggSettings = {
         color = 0x8B0000,
         title = "Rainbow Egg Rift"
     },
+    ["event-1"] = {
+        thumbnail = "https://static.wikia.nocookie.net/bgs-infinity/images/5/5b/Common_Egg.png/revision/latest?cb=20250412180346",
+        color = 0x8B0000,
+        title = "Bunny Egg Rift"
+    },
+    ["event-2"] = {
+        thumbnail = "https://static.wikia.nocookie.net/bgs-infinity/images/5/5b/Common_Egg.png/revision/latest?cb=20250412180346",
+        color = 0x8B0000,
+        title = "Pastle Egg Rift"
+    },
     ["aura-egg"] = {
         thumbnail = "https://static.wikia.nocookie.net/bgs-infinity/images/2/2e/Aura_Egg.png/revision/latest/scale-to-width-down/150?cb=20250413042632",
         color = 0x8B0000,
         title = "Aura Egg Rift"
     }
+
 }
 
 local processedEggs = {}
@@ -84,29 +97,54 @@ local function sendWebhook(egg)
         task.wait(1)
     end
 
-    -- Проверяем наличие всех компонентов
     if not (egg.Display and egg.Display.SurfaceGui and egg.Display.SurfaceGui.Timer) then
         warn("⚠️ Не удалось найти компоненты яйца")
         return
     end
 
-    -- Получаем актуальные данные
-    local luck = egg.Display.SurfaceGui.Icon.Luck.Text
+    -- Получаем высоту и округляем до ближайшей 1000
+    local eggPosition = egg.WorldPivot.Position
+    local yHeight = eggPosition.Y
+    local roundedHeight = math.round(yHeight / 1000) * 1000
+    roundedHeight = string.format("%.0f", roundedHeight) -- Убираем десятичные точки
+
+    -- Получаем числовое значение множителя
+    local luckText = egg.Display.SurfaceGui.Icon.Luck.Text
+    local luckValue = tonumber(luckText:match("%d+")) or 0
+    local isEventEgg = table.find({"event-1", "event-2"}, egg.Name)
+    local isAuraEgg = (egg.Name == "aura-egg") -- Новая проверка
+
+    -- Условия отправки
+    local shouldSend = false
+    if isAuraEgg then
+        shouldSend = true -- Всегда отправляем для aura-egg
+    elseif isEventEgg then
+        shouldSend = luckValue >= 5
+    else
+        shouldSend = luckValue >= 25
+    end
+
+    -- Дополнительная проверка для event-яиц с x25+
+    if luckValue >= 25 then
+        shouldSend = true
+    end
+
+    if not shouldSend then
+        print(string.format("🚫 Неподходящий множитель: %s (%d) для %s", 
+            luckText, luckValue, egg.Name))
+        return
+    end
+
+    -- Остальная часть функции
     local timerText = egg.Display.SurfaceGui.Timer.Text
     local duration = parseTime(timerText)
-    
-    -- Повторная проверка через 3 секунды
+    local pingRoleId = "<@&1114528761887608883>"
+
     task.wait(3)
     timerText = egg.Display.SurfaceGui.Timer.Text
     local newDuration = parseTime(timerText)
     duration = math.max(duration, newDuration)
     
-    local currentLuck = egg.Display.SurfaceGui.Icon.Luck.Text
-    if currentLuck:lower() ~= "x25" then  -- Приводим к нижнему регистру
-        print("🚫 Неподходящий множитель:", currentLuck)
-        return
-    end
-
     if duration <= 0 then return end
 
     local currentUnix = os.time()
@@ -119,6 +157,7 @@ local function sendWebhook(egg)
     end
 
     local embedData = {
+        content = pingRoleId,
         username = "Lauria Rifts",
         embeds = {{
             title = settings.title .. " has spawned!",
@@ -134,8 +173,8 @@ local function sendWebhook(egg)
                 {
                     name = "Rift Info",
                     value = string.format(
-                        "🍀 Luck Multiplier: %s\n🕒 Despawns: <t:%d:R>",
-                        luck, despawnUnix
+                        "🍀 Luck Multiplier: %s\n🕒 Despawns: <t:%d:R>\n📐Height: %s",
+                        luckText, despawnUnix, roundedHeight
                     ),
                     inline = false
                 }
@@ -167,7 +206,7 @@ local function setupRiftTracking()
     
     riftsFolder.ChildAdded:Connect(function(child)
         if table.find(eggTypes, child.Name) then
-            print("Обнаружено новое яйцо:", child:GetFullName())
+            print("Обнаружено новое яйцо:", child:GetFullName())    
             task.wait(3)
             sendWebhook(child)
         end
@@ -201,7 +240,6 @@ task.spawn(function()
             end
             break
         end
-        task.wait(2)
     end
 end)
 
