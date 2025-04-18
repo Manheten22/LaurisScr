@@ -173,7 +173,7 @@ local function sendWebhook(egg)
                 {
                     name = "Rift Info",
                     value = string.format(
-                        "🍀 Luck Multiplier: %s\n🕒 Despawns: <t:%d:R>\n📐Height: %s",
+                        "🍀 Luck Multiplier: %s\n🕒 Despawns: <t:%d:R>\n📏Height: %s",
                         luckText, despawnUnix, roundedHeight
                     ),
                     inline = false
