@@ -117,7 +117,7 @@ task.spawn(function()
         local Button1 = "✅ Yes" 
         local Button2 = "❌ No"
 
-        local File = `https://raw.githubusercontent.com/Manheten22/LaurisScr/refs/heads/main/RS.lua`
+        local File = ``
 
         BindableFunction.OnInvoke = function(Button: string)
             Response = true
@@ -240,7 +240,7 @@ getgenv().Flags = Flags
 local Window = Rayfield:CreateWindow({
 	Name = `Lauria | {PlaceName} | {ScriptVersion or "Dev Mode"}`,
 	Icon = "snowflake",
-	LoadingTitle = "❄ Brought to you by Lauria ❄",
+	LoadingTitle = "Brought to you by Lauria",
 	LoadingSubtitle = PlaceName,
 	Theme = "DarkBlue",
 
@@ -255,18 +255,20 @@ local Window = Rayfield:CreateWindow({
 
 	Discord = {
 		Enabled = true,
-		Invite = "sS3tDP6FSB",
+		Invite = "Nd2rRrjyA3",
 		RememberJoins = true
 	},
 })
 
 getgenv().Window = Window
 
-local Tab: Tab = Window:CreateTab("Home", "snowflake")
+local Tab: Tab = Window:CreateTab("Home")
+
+local CombatTab = Window:CreateTab("Combat", "swords")
 
 Tab:CreateSection("Join our Discord!")
 
-Tab:CreateLabel("discord.gg/sS3tDP6FSB", "messages-square")
+Tab:CreateLabel("discord.gg/Nd2rRrjyA3", "messages-square")
 
 Tab:CreateSection("Performance")
 
