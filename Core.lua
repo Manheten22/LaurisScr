@@ -264,8 +264,6 @@ getgenv().Window = Window
 
 local Tab: Tab = Window:CreateTab("Home")
 
-local CombatTab = Window:CreateTab("Combat", "swords")
-
 Tab:CreateSection("Join our Discord!")
 
 Tab:CreateLabel("discord.gg/Nd2rRrjyA3", "messages-square")
