@@ -239,7 +239,7 @@ getgenv().Flags = Flags
 
 local Window = Rayfield:CreateWindow({
 	Name = `Lauria | {PlaceName} | {ScriptVersion or "Dev Mode"}`,
-	Icon = "snowflake",
+	Icon = "church",
 	LoadingTitle = "Brought to you by Lauria",
 	LoadingSubtitle = PlaceName,
 	Theme = "DarkBlue",
