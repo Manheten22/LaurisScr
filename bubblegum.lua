@@ -119,7 +119,7 @@ local function sendWebhook(egg)
     if isAuraEgg then
         shouldSend = true -- Всегда отправляем для aura-egg
     elseif isEventEgg then
-        shouldSend = luckValue >= 5
+        shouldSend = luckValue >= 10
     else
         shouldSend = luckValue >= 25
     end
