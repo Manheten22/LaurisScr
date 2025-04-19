@@ -138,8 +138,6 @@
         shouldSend = true -- Всегда отправляем Royal Chest
     elseif isAuraEgg then
         shouldSend = true
-    elseif isEventEgg then
-        shouldSend = luckValue >= 10
     else
         shouldSend = luckValue >= 25
     end
