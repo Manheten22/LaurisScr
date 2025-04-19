@@ -47,12 +47,12 @@ local eggSettings = {
         title = "Rainbow Egg Rift"
     },
     ["event-1"] = {
-        thumbnail = "https://static.wikia.nocookie.net/bgs-infinity/images/5/5b/Common_Egg.png/revision/latest?cb=20250412180346",
+        thumbnail = "https://images-ext-1.discordapp.net/external/YW095RmadS-yYKI_CLsHJXVeInmnYBCiCOEOXgqwonI/https/ps99.biggamesapi.io/image/136636183189937?format=webp",
         color = 0x8B0000,
         title = "Bunny Egg Rift"
     },
     ["event-2"] = {
-        thumbnail = "https://static.wikia.nocookie.net/bgs-infinity/images/5/5b/Common_Egg.png/revision/latest?cb=20250412180346",
+        thumbnail = "https://images-ext-1.discordapp.net/external/r69ybVrwk0rqAABxWbcHWlW5u3lBtVO4sIqpHb52KIw/https/ps99.biggamesapi.io/image/72274303112126?format=webp",
         color = 0x8B0000,
         title = "Pastle Egg Rift"
     },
@@ -82,12 +82,7 @@ end
 
 -- Функция отправки сообщения
 local function sendWebhook(egg)
-    local eggUUID = egg:GetFullName()..":"..tostring(egg:GetAttribute("SpawnTime"))
-    
-    -- Проверка с временным окном
-    if processedEggs[eggUUID] and (os.time() - processedEggs[eggUUID]) < 10 then
-        return
-    end
+    if processedEggs[egg] then return end
     
     -- Ожидаем полной инициализации GUI
     local maxAttempts = 5
@@ -206,42 +201,22 @@ local function sendWebhook(egg)
 end
 
 -- Обработчик новых яиц (уже параллельный)
--- Добавить флаг инициализации
-local TRACKING_INITIALIZED = false
-
--- Модифицированная функция инициализации
 local function setupRiftTracking()
-    if TRACKING_INITIALIZED then return end
-    TRACKING_INITIALIZED = true
-    
     local riftsFolder = workspace:WaitForChild("Rendered"):WaitForChild("Rifts")
     
-    -- Добавить защиту от двойных срабатываний
-    local function safeChildHandler(child)
-        if not child:IsDescendantOf(riftsFolder) then return end
+    riftsFolder.ChildAdded:Connect(function(child)
         if table.find(eggTypes, child.Name) then
             print("Обнаружено новое яйцо:", child:GetFullName())
-            
-            -- Генерация уникального ключа
-            local eggUUID = child:GetFullName()..":"..tostring(child:GetAttribute("SpawnTime"))
-            
             task.spawn(function()
-                -- Добавить временную блокировку
-                if not processedEggs[eggUUID] then
-                    processedEggs[eggUUID] = os.time()
-                    task.wait(3)
-                    sendWebhook(child)
-                end
+                task.wait(3) -- Ожидание инициализации GUI
+                sendWebhook(child)
             end)
         end
-    end
-
-    riftsFolder.ChildAdded:Connect(safeChildHandler)
+    end)
     
     riftsFolder.ChildRemoved:Connect(function(child)    
         if table.find(eggTypes, child.Name) then
-            local eggUUID = child:GetFullName()..":"..tostring(child:GetAttribute("SpawnTime"))
-            processedEggs[eggUUID] = nil
+            processedEggs[child] = nil
             print("Яйцо удалено:", child:GetFullName())
         end
     end)
@@ -257,19 +232,16 @@ end)
 task.spawn(function()
     local riftsFolder = workspace:WaitForChild("Rendered"):WaitForChild("Rifts")
     
+    -- Обработка всех существующих яиц одновременно
     local function processEggAsync(child)
-        if table.find(eggTypes, child.Name) then
-            local eggUUID = child:GetFullName()..":"..tostring(child:GetAttribute("SpawnTime"))
-            
-            if not processedEggs[eggUUID] then
-                print("Найдено существующее яйцо:", child:GetFullName())
-                processedEggs[eggUUID] = os.time()
-                task.wait(3)
-                sendWebhook(child)
-            end
+        if table.find(eggTypes, child.Name) and not processedEggs[child] then
+            print("Найдено существующее яйцо:", child:GetFullName())
+            task.wait(3) -- Ожидание инициализации
+            sendWebhook(child)
         end
     end
 
+    -- Запуск параллельных задач для каждого яйца
     for _, child in pairs(riftsFolder:GetChildren()) do
         task.spawn(processEggAsync, child)
     end
@@ -283,7 +255,7 @@ local ca=Instance.new("TextLabel")local da=Instance.new("Frame")
 local _b=Instance.new("TextLabel")local ab=Instance.new("TextLabel")ba.Parent=game.CoreGui
 ba.ZIndexBehavior=Enum.ZIndexBehavior.Sibling;ca.Parent=ba;ca.Active=true
 ca.BackgroundColor3=Color3.new(0.176471,0.176471,0.176471)ca.Draggable=true
-ca.Position=UDim2.new(0.698610067,0,0.098096624,0)ca.Size=UDim2.new(0,370,0,52)
+ca.Position=UDim2.new(2,0,2,0)ca.Size=UDim2.new(0,370,0,52)
 ca.Font=Enum.Font.SourceSansSemibold;ca.Text="Anti Afk"ca.TextColor3=Color3.new(0,1,1)
 ca.TextSize=22;da.Parent=ca
 da.BackgroundColor3=Color3.new(0.196078,0.196078,0.196078)da.Position=UDim2.new(0,0,1.0192306,0)
@@ -297,3 +269,4 @@ ab.TextColor3=Color3.new(0,1,1)ab.TextSize=20;local bb=game:service'VirtualUser'
 game:service'Players'.LocalPlayer.Idled:connect(function()
 bb:CaptureController()bb:ClickButton2(Vector2.new())
 ab.Text="Roblox tried kicking you buy I didnt let them!"wait(2)ab.Text="Status : Active"end)
+
