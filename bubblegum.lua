@@ -248,11 +248,6 @@
         end)
     end
 
-    -- Инициализация
-    game.Players.LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(3) -- Ожидаем загрузку персонажа
-        setupRiftTracking()
-    end)
 
     -- Первичная проверка существующих яиц
     task.spawn(function()
@@ -271,10 +266,6 @@
         end
     end)
 
--- Основная инициализация (вызывается один раз)
-setupRiftTracking()
-
-    -- Основная инициализация
     setupRiftTracking()
 
     wait(0.5)local ba=Instance.new("ScreenGui")
