@@ -258,20 +258,21 @@
     task.spawn(function()
         local riftsFolder = workspace:WaitForChild("Rendered"):WaitForChild("Rifts")
         
-        -- Обработка всех существующих яиц одновременно
         local function processEggAsync(child)
             if table.find(eggTypes, child.Name) and not processedEggs[child] then
                 print("Найдено существующее яйцо:", child:GetFullName())
-                task.wait(3) -- Ожидание инициализации
+                task.wait(3)
                 sendWebhook(child)
             end
         end
-
-        -- Запуск параллельных задач для каждого яйца
+    
         for _, child in pairs(riftsFolder:GetChildren()) do
             task.spawn(processEggAsync, child)
         end
     end)
+
+-- Основная инициализация (вызывается один раз)
+setupRiftTracking()
 
     -- Основная инициализация
     setupRiftTracking()
