@@ -1,4 +1,4 @@
---!strict
+--!strict 
 -- Загрузка Rayfield и сервисов
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
@@ -27,6 +27,7 @@ local originalPosition
 local isReturning = false
 local currentTargetEgg
 local isAtTargetPosition = false
+local autoPlaytimeEnabled = false
 -- смещение по Y при телепортации к цели
 local TELEPORT_Y_OFFSET = 3
 
@@ -219,6 +220,55 @@ local function startAutofarmProcess()
     end)()
 end
 
+local playtime = Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("ScreenGui"):WaitForChild("Playtime")
+local spinner = Players.LocalPlayer.PlayerGui.ScreenGui.Spinner
+local hud = Players.LocalPlayer.PlayerGui.ScreenGui.HUD
+
+local function startAutoPlayTime()
+    task.spawn(function()
+        local playtimeUI = Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("ScreenGui"):WaitForChild("Playtime")
+        local gui = playtimeUI:WaitForChild("Frame"):WaitForChild("Main")
+        
+        while autoPlaytimeEnabled do
+            for i = 1, 9 do
+                if not autoPlaytimeEnabled then break end
+                local slot = gui:FindFirstChild(tostring(i))
+                local button = slot and slot:FindFirstChild("Button")
+                
+                if button and button:IsA("ImageButton") then
+                    if button.Label.Text == "Open" then
+                        -- Эмуляция нажатия кнопки через событие
+                        local success, err = pcall(function()
+							button:SetAttribute("Pressed", true)
+							task.wait(0.1)
+							button:SetAttribute("Pressed", false)
+							playtime.Visible = false
+							task.wait(0.1)
+							spinner.Visible = false
+							hud.Visible = true
+							spinner.Skip.Button:SetAttribute("Pressed", true)
+							task.wait(0.1)
+							spinner.Skip.Button:SetAttribute("Pressed", false)
+
+							-- Начинаем цикл проверки видимости Playtime
+							repeat
+								task.wait() -- Ожидание следующего кадра для уменьшения нагрузки
+							until playtime.Visible == true
+							
+                        end)
+                        
+                        if not success then
+                            warn("Ошибка при нажатии кнопки:", err)
+                        end
+                    end
+                end
+                task.wait(1)
+            end
+        end
+    end)
+end
+
+
 --------------------------------------------------------------------------------
 -- UI: вкладки и элементы
 --------------------------------------------------------------------------------
@@ -242,8 +292,16 @@ end})
 
 local SettingsTab = Window:CreateTab("Settings","cog")
 SettingsTab:CreateSection("Settings")
-SettingsTab:CreateToggle({Name="Auto Chest",CurrentValue=false,Flag="AutoChestFlag",Callback=function()end})
-SettingsTab:CreateToggle({Name="Auto Playtime",CurrentValue=false,Flag="AutoPlaytimeFlag",Callback=function()end})
+SettingsTab:CreateToggle({Name="Auto Chest",CurrentValue=false,Flag="AutoChestFlag",Callback=function()
+
+end})
+
+SettingsTab:CreateToggle({Name="Auto Playtime",CurrentValue=false,Flag="AutoPlaytimeFlag",Callback=function(Value)
+    autoPlaytimeEnabled = Value
+    if Value then
+       startAutoPlayTime()
+    end
+end})
 
 Workspace.Rendered.Rifts.ChildRemoved:Connect(function(child)
     if autofarmEnabled and table.find(selectedEggs,child.Name) and child==currentTargetEgg then
