@@ -1,487 +1,456 @@
---!strict
-local StartLoadTime = tick()
+    --!strict
+    local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local StarterGui = game:GetService("StarterGui")
+    -- Жёстко прописанный список типов яиц
+    local eggTypes = {
+        "nightmare-egg",
+        "void-egg",
+        "rainbow-egg",
+        "event-1",
+        "event-2",
+        "aura-egg",
+        "royal-chest"
+    }
 
-local Player = Players.LocalPlayer
+    local selectedEggs = {}
+    local originalWalkSpeed
+    local originalJumpPower
+    local antiGravityForces = {}
+    local movementConnection
+    local SAFE_Y_LEVEL = -100
+    local isTravelingToEgg = false
+    local currentTargetEgg = nil
+    -- Добавим новые переменные для контроля состояния
+    local isAtTargetPosition = false
+    local lastTargetPosition = nil
 
-local getgenv: () -> ({[string]: any}) = getfenv().getgenv
+    -- Создаем защищенную конфигурацию
+    local config = {
+        Name = "Lauria Script" or "Default Name", -- Защита от nil
+        LoadingTitle = "Lauria Script Loading",
+        LoadingSubtitle = "by Developer",
+        ConfigurationSaving = {
+            Enabled = true,
+            FolderName = "LauriaConfig", -- Обязательный параметр
+            FileName = "LauriaSettings"  -- Обязательный параметр
+        },
+        Discord = {
+            Enabled = true,
+            Invite = "https://discord.gg/WM7edScy" -- Добавляем пустую строку вместо nil
+        },
+        KeySystem = false,
+        Theme = "Default" -- Явно указываем тему
+    }
 
-local PlaceName: string = getgenv().PlaceName or game:GetService("AssetService"):GetGamePlacesAsync(game.GameId):GetCurrentPage()[1].Name
+    local Window = Rayfield:CreateWindow(config)
 
-local getexecutorname = getfenv().getexecutorname
-local identifyexecutor: () -> (string) = getfenv().identifyexecutor
-local request = getfenv().request
-local getconnections: (RBXScriptSignal) -> ({RBXScriptConnection}) = getfenv().getconnections
-local queue_on_teleport: (Code: string) -> () = getfenv().queue_on_teleport
-local setfpscap: (FPS: number) -> () = getfenv().setfpscap
-local isrbxactive: () -> (boolean) = getfenv().isrbxactive
-local setclipboard: (Text: string) -> () = getfenv().setclipboard
-local firesignal: (RBXScriptSignal) -> () = getfenv().firesignal
+    -- Убедимся что все элементы имеют уникальные флаги
+    local ElementsFlags = {
+        AutoAttack = "AutoAttackFlag",
+        AimAssist = "AimAssistFlag",
+        NoFog = "NoFogFlag",
+        Distance = "DistanceFlag"
+    }
 
-if not getgenv().ScriptVersion then
-	getgenv().ScriptVersion = "Dev Mode"
-end
+    -- Combat Tab
+    local CombatTab = Window:CreateTab("Combat", "swords")
 
-local ScriptVersion = getgenv().ScriptVersion
+    -- Section: Attacking
+    CombatTab:CreateSection("Attacking")
+    CombatTab:CreateToggle({
+        Name = "⚔ Auto Attack",
+        CurrentValue = false,
+        Flag = ElementsFlags.AutoAttack, -- Уникальный флаг
+        Callback = function(Value)
+            -- Логика атаки
+        end
+    })
 
-getgenv().gethui = function()
-	return game:GetService("CoreGui")
-end
+    -- Section: Aiming
+    CombatTab:CreateSection("Aiming")
+    CombatTab:CreateToggle({
+        Name = "🎯 Look At Enemy",
+        CurrentValue = false,
+        Flag = ElementsFlags.AimAssist, -- Уникальный флаг
+        Callback = function(Value)
+            -- Логика прицеливания
+        end
+    })
 
-getgenv().FrostByteConnections = getgenv().FrostByteConnections or {}
+    -- Visuals Tab
+    local VisualsTab = Window:CreateTab("Visuals", "sparkles")
+    VisualsTab:CreateSection("Effects")
 
-local function HandleConnection(Connection: RBXScriptConnection?, Name: string)
-	if getgenv().FrostByteConnections[Name] then
-		getgenv().FrostByteConnections[Name]:Disconnect()
-	end
+    VisualsTab:CreateToggle({
+        Name = "🌫 Remove Fog",
+        CurrentValue = false,
+        Flag = ElementsFlags.NoFog, -- Уникальный флаг
+        Callback = function(Value)
+            -- Логика удаления тумана
+        end
+    })
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Manheten22/LaurisScr/refs/heads/main/bubblegum.lua"))()  
+    -- Добавляем новую вкладку Autofarm
+    local AutofarmTab = Window:CreateTab("Autofarm", "cog") -- Иконка шестеренки
+    local AutofarmSection = AutofarmTab:CreateSection("AutoFarm Settings")
 
-	getgenv().FrostByteConnections[Name] = Connection
-end
 
-getgenv().HandleConnection = HandleConnection
 
-getgenv().GetClosestChild = function(Children: {PVInstance}, Callback: ((Child: PVInstance) -> boolean)?, MaxDistance: number?)
-	local Character = Player.Character
+-- Создаём дропдаун для выбора яиц
+local EggDropdown = AutofarmTab:CreateDropdown({
+    Name = "Select Eggs",
+    Options = eggTypes,
+    CurrentOption = {},
+    MultipleOptions = true,
+    Flag = "EggSelection",
+    Callback = function(Options)
+        selectedEggs = Options
+print(selectedEggs)
+    end
+})
 
-	if not Character then
-		return
-	end
+    -- Состояния Autofarm
+    local autofarmEnabled = false
+    local originalPosition = nil
+    local currentTween = nil
+    local isReturning = false
 
-	local HumanoidRootPart: Part = Character:FindFirstChild("HumanoidRootPart")
+    -- Функция для поиска лучшего яйца
+local function findBestEgg()
+    local bestEgg = nil
+    local maxLuck = 0
+    
+    local riftsFolder = workspace:WaitForChild("Rendered"):WaitForChild("Rifts")
+    if not riftsFolder then 
+        warn("Rifts folder not found!")
+        return nil
+    end
 
-	if not HumanoidRootPart then
-		return
-	end
+    print("Searching in Rifts folder. Children count:", #riftsFolder:GetChildren())
+    print("Selected eggs:", table.concat(selectedEggs, ", "))
 
-	local CurrentPosition: Vector3 = HumanoidRootPart.Position
-
-	local ClosestMagnitude = MaxDistance or math.huge
-	local ClosestChild
-
-	for _, Child in Children do
-		if not Child:IsA("PVInstance") then
-			continue
-		end
-
-		if Callback and Callback(Child) then
-			continue
-		end
-
-		local Magnitude = (Child:GetPivot().Position - CurrentPosition).Magnitude
-
-		if Magnitude < ClosestMagnitude then
-			ClosestMagnitude = Magnitude
-			ClosestChild = Child
-		end
-	end
-
-	return ClosestChild
-end
-
-local UnsupportedName = " (Executor Unsupported)"
-
-local function ApplyUnsupportedName(Name: string, Condition: boolean)
-	return Name..if Condition then "" else UnsupportedName
-end
-
-getgenv().ApplyUnsupportedName = ApplyUnsupportedName
-
-if not getgenv().PlaceFileName then
-	local PlaceFileName = PlaceName:gsub("%b[]", "")
-	PlaceFileName = PlaceFileName:gsub("[^%a]", "")
-	getgenv().PlaceFileName = PlaceFileName
-end
-
-local function SendNotification(Title: string, Text: string, Duration: number?, Button1: string?, Button2: string?, Callback: BindableFunction?)
-	StarterGui:SetCore("SendNotification", {
-		Title = Title,
-		Text = Text,
-		Duration = Duration or 10,
-		Button1 = Button1,
-		Button2 = Button2,
-		Callback = Callback
-	})
-end
-
-task.spawn(function()
-    if ScriptVersion:sub(1, 1) == "v" then
-        local PlaceFileName = getgenv().PlaceFileName
-
-        local BindableFunction = Instance.new("BindableFunction")
-
-        local Response = false
-
-        local Button1 = "✅ Yes" 
-        local Button2 = "❌ No"
-
-        local File = ``
-
-        BindableFunction.OnInvoke = function(Button: string)
-            Response = true
-
-            if Button == Button1 then
-                local Temp = loadstring(game:HttpGet(File))
-
-                if not Temp then
-                    return warn("Failed to load the script for the current game.")
+    for _, eggName in pairs(selectedEggs) do
+        print("Checking egg type:", eggName)
+        local egg = riftsFolder:FindFirstChild(eggName)
+        
+        if egg then
+            print("Found egg instance:", egg:GetFullName())
+            if egg:IsA("Model") then
+                local display = egg:FindFirstChild("Display")
+                local surfaceGui = display and display:FindFirstChild("SurfaceGui")
+                local icon = surfaceGui and surfaceGui:FindFirstChild("Icon")
+                local luck = icon and icon:FindFirstChild("Luck")
+                
+                if luck then
+                    local luckText = luck.Text
+                    local luckValue = tonumber(luckText:match("%d+")) or 0
+                    print("Egg", eggName, "has luck:", luckValue)
+                    
+                    if luckValue > maxLuck then
+                        maxLuck = luckValue
+                        bestEgg = egg
+                        print("New best egg:", eggName, "with luck:", luckValue)
+                    end
+                else
+                    warn("Missing Luck component in", egg:GetFullName())
                 end
-
-                Temp()
+            else
+                warn("Found object but not Model:", egg.ClassName)
             end
+        else
+            print("Egg not found:", eggName)
+        end
+    end
+    
+    if bestEgg then
+        -- Проверка наличия необходимых компонентов
+        if not bestEgg:FindFirstChild("EggPlatformSpawn") then
+            warn("EggPlatformSpawn missing in", bestEgg.Name)
+            return nil
+        end
+    end
+    return bestEgg
+end
+
+function moveToPosition(targetPos: Vector3, onReached: () -> ())
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+
+    local hrp = character:WaitForChild("HumanoidRootPart")
+    local speed = 25
+
+    -- Отключаем предыдущие соединения
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
+
+    connection = game["Run Service"].RenderStepped:Connect(function(dt)
+        if not autofarmEnabled or isReturning then
+            connection:Disconnect()
+            return
         end
 
-        while task.wait(60) do
-            local Result = game:HttpGet(File)
+        local currentPos = hrp.Position
+        local direction = (targetPos - currentPos).Unit
+        local distance = (targetPos - currentPos).Magnitude
 
-            if not Result then
-                continue
-            end
-
-            Result = Result:split('getgenv().ScriptVersion = "')[2]
-            Result = Result:split('"')[1]
-
-            if Result == ScriptVersion then
-                continue
-            end
-
-            break
+        if distance < 2 then
+            connection:Disconnect()
+            onReached()
+            return
         end
+
+        hrp.Velocity = direction * speed
+    end)
+end
+
+
+
+local function returnToOriginalPosition()
+    if not originalPosition then return end
+    
+    isReturning = true
+    local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
+    
+    -- Включаем гравитацию и движение для возврата
+    enableMovement()
+    enableGravity()
+    
+    moveToPosition(Vector3.new(originalPosition.X, originalPosition.Y, originalPosition.Z), function()
+        hrp.CFrame = CFrame.new(originalPosition)
+        isReturning = false
+    end)
+end
+
+local function disableMovement()
+    local humanoid = game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        originalWalkSpeed = humanoid.WalkSpeed
+        originalJumpPower = humanoid.JumpPower
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+    end
+end
+
+local function enableMovement()
+    local humanoid = game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid and originalWalkSpeed then
+        humanoid.WalkSpeed = originalWalkSpeed
+        humanoid.JumpPower = originalJumpPower
+    end
+end
+
+local function disableGravity()
+    local character = game.Players.LocalPlayer.Character
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") and part.Mass > 0 then
+            local mass = part:GetMass()
+            local bodyForce = Instance.new("BodyForce")
+            bodyForce.Force = Vector3.new(0, mass * workspace.Gravity, 0)
+            bodyForce.Parent = part
+            antiGravityForces[part] = bodyForce
+        end
+    end
+end
+
+local function enableGravity()
+    for part, bodyForce in pairs(antiGravityForces) do
+        if part:IsDescendantOf(game.Players.LocalPlayer.Character) then
+            bodyForce:Destroy()
+        end
+    end
+    antiGravityForces = {}
+end
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
+    if autofarmEnabled then
+        character:WaitForChild("Humanoid")
+        disableMovement()
+        disableGravity()
     end
 end)
 
-local OriginalFlags = {}
-
-if getgenv().Flags then
-	for FlagName: string, FlagInfo in getgenv().Flags do
-		if typeof(FlagInfo.CurrentValue) ~= "boolean" then
-			continue
-		end
-
-		OriginalFlags[FlagName] = FlagInfo.CurrentValue
-		FlagInfo:Set(false)
-	end
+    -- Основной процесс автофарма
+-- Основной процесс автофарма
+-- Обновленная функция поиска позиции яйца
+local function getEggPosition(egg)
+    -- Способ 1: Ищем любую часть с коллизией
+    for _, part in pairs(egg:GetDescendants()) do
+        if part:IsA("BasePart") and part.CanCollide then
+            return part.WorldPivot.Position
+        end
+    end
+    
+    -- Способ 2: Используем модель целиком
+    if egg:IsA("Model") then
+        local _, size = egg:GetBoundingBox()
+        return egg:GetPivot().Position + Vector3.new(0, size.Y/2, 0)
+    end
+    
+    -- Способ 3: Резервный вариант
+    return egg.WorldPivot.Position
 end
 
-if getgenv().Rayfield then
-	getgenv().Rayfield:Destroy()
+local function teleportToEggSafely(targetCFrame)
+    local player = game.Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local root = character:WaitForChild("HumanoidRootPart")
+    if not root then return end
+
+    -- Сохраняем оригинальные настройки
+    local originalDestroyHeight = workspace.FallenPartsDestroyHeight
+    workspace.FallenPartsDestroyHeight = -math.huge
+
+    -- Телепортация в три этапа
+    root.CFrame = CFrame.new(root.Position.X, SAFE_Y_LEVEL, root.Position.Z) -- 1. Безопасный Y уровень
+    task.wait(0.2)
+    root.CFrame = CFrame.new(targetCFrame.X, SAFE_Y_LEVEL, targetCFrame.Z)   -- 2. Движение по X/Z
+    task.wait(0.2)
+    root.CFrame = targetCFrame                                                -- 3. Финальная позиция
+
+    -- Восстановление при смерти
+    character.AncestryChanged:Connect(function()
+        if not character:IsDescendantOf(workspace) then
+            task.wait(2)
+            workspace.FallenPartsDestroyHeight = originalDestroyHeight
+        end
+    end)
 end
 
-local Rayfield
 
-if getgenv().RayfieldTesting then
-	local Temp = loadstring(getgenv().RayfieldTesting)
-	
-	if not Temp then
-		return warn("Failed to load rayfield testing.")
-	end
-	
-	Rayfield = Temp()
-	print("Running Rayfield Testing")
-else
-	repeat
-		pcall(function()
-			local Temp = loadstring(game:HttpGet("https://raw.githubusercontent.com/alyssagithub/Scripts/refs/heads/main/FrostByte/Rayfield.luau"))
-			
-			if not Temp then
-				return warn("Failed to load rayfield.")
-			end
 
-			Rayfield = Temp()
-		end)
-		task.wait()
-	until Rayfield
+-- Модифицированный процесс автофарма
+local function startAutofarmProcess()
+    while autofarmEnabled do
+        task.wait(1)
+        if isReturning then continue end
+
+        local bestEgg = findBestEgg()
+        if not bestEgg then
+            -- Если яйца не найдены, возвращаемся и восстанавливаем настройки
+            returnToOriginalPosition()
+            enableMovement()
+            enableGravity()
+            break
+        end
+
+        if bestEgg and bestEgg ~= currentTargetEgg then
+            isTravelingToEgg = true
+            currentTargetEgg = bestEgg
+            lastTargetPosition = nil
+
+            local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
+            
+            -- Первичная телепортация на безопасный уровень
+            hrp.CFrame = CFrame.new(hrp.Position.X, SAFE_Y_LEVEL, hrp.Position.Z)
+            task.wait(0.5)
+
+            local eggPlatform = bestEgg:FindFirstChild("EggPlatformSpawn")
+            if eggPlatform then
+                local platformPart = eggPlatform:FindFirstChild("Part")
+                if platformPart and platformPart:IsA("BasePart") then
+                    local partPos = platformPart.CFrame.Position
+                    lastTargetPosition = partPos
+                    
+                    -- Движение к X/Z позиции
+                    moveToPosition(Vector3.new(partPos.X, SAFE_Y_LEVEL, partPos.Z), function()
+                        -- Финишная телепортация
+                        teleportToEggSafely(CFrame.new(partPos.X, partPos.Y + 1, partPos.Z))
+                        isAtTargetPosition = true
+                        
+                        -- Запускаем мониторинг позиции
+                        coroutine.wrap(function()
+                            while autofarmEnabled and isAtTargetPosition do
+                                local currentPos = game.Players.LocalPlayer.Character.HumanoidRootPart.Position
+                                local targetPos = Vector3.new(partPos.X, partPos.Y + 1, partPos.Z)
+                                
+                                -- Если расстояние превышает 5 метров, повторяем телепорт
+                                if (currentPos - targetPos).Magnitude > 5 then
+                                    teleportToEggSafely(CFrame.new(targetPos))
+                                end
+                                
+                                -- Проверяем существование яйца
+                                if not bestEgg:IsDescendantOf(workspace) then
+                                    isAtTargetPosition = false
+                                    isTravelingToEgg = false
+                                    currentTargetEgg = nil
+                                    return
+                                end
+                                
+                                task.wait(1)
+                            end
+                        end)()
+                    end)
+                else
+                    warn("Part not found")
+                    resetState()
+                end
+            else
+                warn("Platform not found")
+                resetState()
+            end
+        end
+    end
 end
 
-getgenv().Initiated = nil
-
-type Element = {
-	CurrentValue: any,
-	CurrentOption: {string},
-	Set: (self: Element, any) -> ()
-}
-
-type Flags = {
-	[string]: Element
-}
-
-type Tab = {
-	CreateSection: (self: Tab, Name: string) -> Element,
-	CreateDivider: (self: Tab) -> Element,
-	CreateToggle: (self: Tab, any) -> Element,
-	CreateSlider: (self: Tab, any) -> Element,
-	CreateDropdown: (self: Tab, any) -> Element,
-	CreateButton: (self: Tab, any) -> Element,
-	CreateLabel: (self: Tab, any, any?) -> Element,
-	CreateParagraph: (self: Tab, any) -> Element,
-}
-
-local function Notify(Title: string, Content: string, Image: string)
-	if not Rayfield then
-		return
-	end
-
-	Rayfield:Notify({
-		Title = Title,
-		Content = Content,
-		Duration = 10,
-		Image = Image or "info",
-	})
+local function resetState()
+    isTravelingToEgg = false
+    currentTargetEgg = nil
+    isAtTargetPosition = false
+    lastTargetPosition = nil
 end
 
-getgenv().Notify = Notify
 
-local Flags: Flags = Rayfield.Flags
-
-getgenv().Flags = Flags
-
-local Window = Rayfield:CreateWindow({
-	Name = `Lauria | {PlaceName} | {ScriptVersion or "Dev Mode"}`,
-	Icon = "snowflake",
-	LoadingTitle = "Brought to you by Lauria",
-	LoadingSubtitle = PlaceName,
-	Theme = "DarkBlue",
-
-	DisableRayfieldPrompts = true,
-	DisableBuildWarnings = true,
-
-	ConfigurationSaving = {
-		Enabled = true,
-		FolderName = "FrostByte",
-		FileName = `{getgenv().PlaceFileName or `DevMode-{game.PlaceId}`}-{Player.Name}`
-	},
-
-	Discord = {
-		Enabled = true,
-		Invite = "Nd2rRrjyA3",
-		RememberJoins = true
-	},
+-- Переключатель Autofarm
+-- В callback переключателя
+local AutofarmToggle = AutofarmTab:CreateToggle({
+    Name = "Autofarm",
+    CurrentValue = false,
+    Flag = "AutofarmFlag",
+    Callback = function(Value)
+        autofarmEnabled = Value
+        
+        if Value then
+            -- Сохраняем позицию и настраиваем персонажа
+            local character = game.Players.LocalPlayer.Character
+            if character then
+                disableMovement()
+                disableGravity()
+                originalPosition = character.HumanoidRootPart.Position
+            end
+            startAutofarmProcess()
+        else
+            enableMovement()
+            enableGravity()
+            if currentTween then 
+                currentTween:Cancel()
+            end
+            returnToOriginalPosition()
+        end
+    end
 })
 
-getgenv().Window = Window
-
-local Tab: Tab = Window:CreateTab("Home")
-
-local CombatTab = Window:CreateTab("Combat", "swords")
-
-Tab:CreateSection("Join our Discord!")
-
-Tab:CreateLabel("discord.gg/Nd2rRrjyA3", "messages-square")
-
-Tab:CreateSection("Performance")
-
-local PingLabel = Tab:CreateLabel("Ping: 0 ms", "wifi")
-local FPSLabel = Tab:CreateLabel("FPS: 0/s", "monitor")
-
-local Stats = game:GetService("Stats")
-
-task.spawn(function()
-	while getgenv().Flags == Flags and task.wait(0.25) do
-		PingLabel:Set(`Ping: {math.floor(Stats.PerformanceStats.Ping:GetValue() * 100) / 100} ms`)
-		FPSLabel:Set(`FPS: {math.floor(1 / Stats.FrameTime * 10) / 10}/s`)
-	end
+    -- Обработчик удаления яйца
+-- Обновим обработчик удаления яйца
+workspace.Rendered.Rifts.ChildRemoved:Connect(function(child)
+    if autofarmEnabled and table.find(selectedEggs, child.Name) then
+        if child == currentTargetEgg then
+            resetState()
+            returnToOriginalPosition()
+            
+            -- Ждем завершения возврата
+            while isReturning do task.wait() end
+            
+            -- Проверяем наличие новых яиц
+            local newEgg = findBestEgg()
+            if not newEgg then
+                enableMovement()
+                enableGravity()
+            else
+                startAutofarmProcess()
+            end
+        end
+    end
 end)
-
-Tab:CreateSection("Changelog")
-
-Tab:CreateParagraph({Title = `{PlaceName} {ScriptVersion}`, Content = getgenv().Changelog or "Changelog Not Found"})
-
---------------------------------------------------------------------------------------------------------------
-
-local SpeedConnection: RBXScriptConnection?
-local ConnectedHumanoid
-
-local function SetSpeed()
-	local Character = Player.Character
-
-	if not Character then
-		return
-	end
-
-	local Humanoid: Humanoid = Character:FindFirstChild("Humanoid")
-
-	if not Humanoid then
-		return
-	end
-
-	if Flags.ChangeSpeed.CurrentValue then
-		Humanoid.WalkSpeed = Flags.Speed.CurrentValue
-	end
-
-	if not SpeedConnection then
-		SpeedConnection = Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(SetSpeed)
-		ConnectedHumanoid = Humanoid
-		HandleConnection(SpeedConnection, "WalkSpeedConnection")
-	end
-end
-
-HandleConnection(Player.CharacterAdded:Connect(function()
-	if SpeedConnection then
-		SpeedConnection:Disconnect()
-		SpeedConnection = nil
-	end
-
-	SetSpeed()
-end), "WalkSpeedCharacterAdded")
-
-local Connections = {}
-
-local OriginalText = {}
-
-local function HandleUsernameChange(Object)
-	if not Flags.HideIdentity.CurrentValue then
-		return
-	end
-
-	if not Object:IsA("TextLabel") and not Object:IsA("TextBox") and not Object:IsA("TextButton") then
-		return
-	end
-
-	local NameReplacement = Flags.NameReplacement.CurrentValue
-
-	if not Connections[Object] then
-		Connections[Object] = Object:GetPropertyChangedSignal("Text"):Connect(function()
-			HandleUsernameChange(Object)
-		end)
-	end
-
-	if Object.Text:find(Player.Name) then
-		OriginalText[Object] = Object.Text
-		Object.Text = Object.Text:gsub(Player.Name, NameReplacement)
-	elseif Object.Text:find(Player.DisplayName) then
-		OriginalText[Object] = Object.Text
-		Object.Text = Object.Text:gsub(Player.DisplayName, NameReplacement)
-	end
-end
-
-local DescendantAddedConnection
-
-type FeaturesList = {
-	[string]: {
-		{
-			Element: string,
-			Info: {}
-		}
-	}
-}
-
-local Features: FeaturesList = {
-	Speed = {
-		{
-			Element = "Toggle",
-			Info = {
-				Name = "⚡ • Change Speed",
-				CurrentValue = false,
-				Flag = "ChangeSpeed",
-				Callback = function(Value)
-					
-					if not Player.Character or not Value then
-						return
-					end
-					
-					SetSpeed()
-				end,
-			},
-		},
-		{
-			Element = "Slider",
-			Info = {
-				Name = "⚡ • Speed",
-				Range = {0, 250},
-				Increment = 1,
-				Suffix = "Studs/s",
-				CurrentValue = game:GetService("StarterPlayer").CharacterWalkSpeed,
-				Flag = "Speed",
-				Callback = SetSpeed,
-			}
-		},
-		{
-			Element = "Keybind",
-			Info = {
-				Name = "⚡ • Change Speed Keybind",
-				CurrentKeybind = "Z",
-				HoldToInteract = false,
-				Flag = "ChangeSpeedKeybind",
-				Callback = function()
-					Flags.ChangeSpeed:Set(not Flags.ChangeSpeed.CurrentValue)
-				end,
-			}
-		}
-	},
-	HideIdentity = {
-		{
-			Element = "Toggle",
-			Info = {
-				Name = "🎭 • Hide Identity (Client-Sided)",
-				CurrentValue = false,
-				Flag = "HideIdentity",
-				Callback = function(Value)
-					if Value and not DescendantAddedConnection then
-						for i,v in game:GetDescendants() do
-							HandleUsernameChange(v)
-						end
-
-						DescendantAddedConnection = game.DescendantAdded:Connect(HandleUsernameChange)
-
-						HandleConnection(DescendantAddedConnection, "HideIdentity")
-					elseif DescendantAddedConnection then
-						DescendantAddedConnection:Disconnect()
-						DescendantAddedConnection = nil
-
-						for Object, Text in OriginalText do
-							Object.Text = Text
-						end
-
-						OriginalText = {}
-					end
-				end,
-			}
-		},
-		{
-			Element = "Input",
-			Info = {
-				Name = "💬 • Name To Replace With",
-				CurrentValue = "Lauria",
-				PlaceholderText = "New Name Here",
-				RemoveTextAfterFocusLost = false,
-				Flag = "NameReplacement",
-			}
-		}
-	}
-}
-
-getgenv().CreateFeature = function(Tab: Tab, FeatureName: string)
-	if not Features[FeatureName] then
-		return warn(`The feature '{FeatureName}' does not exist in the Features.`)
-	end
-	
-	for _, Data in Features[FeatureName] do
-		Tab[`Create{Data.Element}`](Tab, Data.Info)
-	end
-end
-
-getgenv().CreateUniversalTabs = function()
-	Rayfield:LoadConfiguration()
-
-	task.wait(1)
-
-	for FlagName: string, CurrentValue: boolean? in OriginalFlags do
-		local FlagInfo = Flags[FlagName]
-
-		if not FlagInfo then
-			continue
-		end
-
-		FlagInfo:Set(CurrentValue)
-	end
-
-	Notify("Welcome to Lauria", `Loaded in {math.floor((tick() - StartLoadTime) * 10) / 10}s`, "loader-circle")
-end
-
-local FrostByteStarted = getgenv().FrostByteStarted
-
-if FrostByteStarted then
-	FrostByteStarted()
-end
