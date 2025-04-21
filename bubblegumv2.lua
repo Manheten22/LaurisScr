@@ -29,6 +29,8 @@ end
 local CollectPickup = ReplicatedStorage.Remotes.Pickups:WaitForChild("CollectPickup")
 -- Список имен моделей, которые нужно пропускать (с пробелами)
 local skipNames = {
+    ["Inferno Egg"] = true, 
+    ["Coming Soon"] = true,
     ["Common Egg"] = true,
     ["Spotted Egg"] = true,
     ["Iceshard Egg"] = true,
@@ -370,13 +372,13 @@ local function startAutoLoot()
             -- Для каждой папки Chunker
             for _, folder in ipairs(Workspace.Rendered:GetChildren()) do
                 if folder.Name == "Chunker" then
-                    debugLog("Обрабатываем папку: " .. folder:GetFullName())
+                    --debugLog("Обрабатываем папку: " .. folder:GetFullName())
                     for _, model in ipairs(folder:GetChildren()) do
                         if model:IsA("Model") then
                             if skipNames[model.Name] then
-                                debugLog("Пропускаем модель: " .. model.Name)
+                              --  debugLog("Пропускаем модель: " .. model.Name)
                             else
-                                debugLog("Лутим модель: " .. model.Name)
+                               -- debugLog("Лутим модель: " .. model.Name)
                                 -- Собираем MeshPart
                                 local meshParts = {}
                                 for _, part in ipairs(model:GetDescendants()) do
@@ -388,7 +390,7 @@ local function startAutoLoot()
                                     warn("[AutoLoot] Нет MeshPart в " .. model.Name)
                                 else
                                     local mesh = meshParts[1]
-                                    debugLog("Используем MeshPart: " .. mesh.Name)
+                                   -- debugLog("Используем MeshPart: " .. mesh.Name)
                                         -- Телепорт модели
                                     model.PrimaryPart = mesh
                                 -- Эмуляция касания
@@ -397,7 +399,7 @@ local function startAutoLoot()
                                    -- debugLog("Эмуляция касания выполнена: " .. model.Name)
                                     CollectPickup:FireServer(model.Name)
                                     CollectPickup:FireServer(model.PrimaryPart.Position)
-                                    model:Destroy()
+                                    mesh.Transparency = 1
                                 end
                             end
                         end
