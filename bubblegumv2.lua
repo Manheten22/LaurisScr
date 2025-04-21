@@ -9,12 +9,41 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 
 -- Переменные для авто-лутирования пикапов
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Список нужных эффектов
+local effectNames = {"Light Effect", "Shine", "Stars"}
+
+-- Папка с эффектами
+local pickupFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Particles"):WaitForChild("Pickup")
+
+-- Устанавливаем LifeTime = NumberRange.new(0, 0) для каждого эффекта
+for _, name in ipairs(effectNames) do
+    local effect = pickupFolder:FindFirstChild(name)
+    if effect and effect:IsA("ParticleEmitter") then
+        effect.Lifetime = NumberRange.new(0, 0)
+    end
+end
+
+
+
 local CollectPickup = ReplicatedStorage.Remotes.Pickups:WaitForChild("CollectPickup")
 -- Список имен моделей, которые нужно пропускать (с пробелами)
 local skipNames = {
+    ["Common Egg"] = true,
+    ["Spotted Egg"] = true,
+    ["Iceshard Egg"] = true,
+    ["Spikey Egg"] = true,
+    ["Magma Egg"] = true,
+    ["Crystal Egg"] = true,
+    ["Lunar Egg"] = true,
+    ["Void Egg"] = true,
     ["Hell Egg"] = true,
     ["Nightmare Egg"] = true,
-    ["Void Egg"] = true,
+    ["Rainbow Egg"] = true,
+    ["Infinity Egg"] = true,
+    ["Aura Egg"] = true,
+    ["Pastel Egg"] = true,
+    ["Bunny Egg"] = true
 }
 
 -- Функция для отладочных сообщений
@@ -310,7 +339,7 @@ local function startAutoPlayTime()
                 else
                     warn(string.format("[AutoPlayTime] Ошибка при открытии слота %d: %s", i, err))
                 end
-
+                    task.wait(0.2)
                 break  -- выходим из for, сразу переходим к следующему циклу
             end
 
@@ -359,22 +388,16 @@ local function startAutoLoot()
                                     warn("[AutoLoot] Нет MeshPart в " .. model.Name)
                                 else
                                     local mesh = meshParts[1]
-                                    -- Телепортируем модель к игроку
-                                    local char = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
-                                    local hrp = char:WaitForChild("HumanoidRootPart")
-                                    mesh.CanCollide = true
+                                    debugLog("Используем MeshPart: " .. mesh.Name)
+                                        -- Телепорт модели
                                     model.PrimaryPart = mesh
-                                    model:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0,5,0))
-                                    debugLog("Телепорт сделал для " .. model.Name)
-                                    -- Эмуляция касания
-                                    firetouchinterest(mesh, hrp, 0)
-                                    task.wait(0.05)
-                                    firetouchinterest(mesh, hrp, 1)
+                                -- Эмуляция касания
+                                    mesh.CanCollide = true
                                     mesh.CanCollide = false
-                                    debugLog("Коснулись " .. model.Name)
-                                    -- Отправляем на сервер
-                                    CollectPickup:FireServer(model)
-                                    debugLog("Сервер уведомлён о сборе " .. model.Name)
+                                   -- debugLog("Эмуляция касания выполнена: " .. model.Name)
+                                    CollectPickup:FireServer(model.Name)
+                                    CollectPickup:FireServer(model.PrimaryPart.Position)
+                                    model:Destroy()
                                 end
                             end
                         end
