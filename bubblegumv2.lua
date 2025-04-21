@@ -478,6 +478,45 @@ local function startAutoLoot()
 end
 
 
+
+local function startAutoSpinWheel()
+    local wheelGui = Players.LocalPlayer.PlayerGui.ScreenGui.WheelSpin.Frame.Main
+
+    -- Кнопка “Free Spin” и её Label
+    local getTicketButton = wheelGui.Buttons.Free.Button
+    local getTicketLabel  = getTicketButton:FindFirstChild("Label")
+
+    -- Кнопка “Spin” и счётчик билетов
+    local spinButton        = wheelGui.Spin.Button
+    local ticketCountLabel  = spinButton.Amount:FindFirstChild("Label")
+
+    task.spawn(function()
+        while autoSpinWheelEnabled do
+            task.wait(1)  -- пауза между проверками
+            -- 1) Бесплатный спин?
+            if getTicketLabel and getTicketLabel.Text == "FREE SPIN" then
+                print("[AutoSpin] Free Spin available → clicking Get Ticket")
+                getTicketButton:SetAttribute("Pressed", true)
+                task.wait(0.1)
+                getTicketButton:SetAttribute("Pressed", false)
+                task.wait(0.5)
+            end
+
+            -- 2) Есть платные билеты?
+            local count = tonumber(ticketCountLabel.Text) or 0
+            if count >= 1 then
+                print(string.format("[AutoSpin] %d paid tickets → clicking Spin", count))
+                spinButton:SetAttribute("Pressed", true)
+                task.wait(0.1)
+                spinButton:SetAttribute("Pressed", false)
+                task.wait(1)
+            end
+        end
+    end)
+end
+
+
+
 --------------------------------------------------------------------------------
 -- UI: вкладки и элементы
 --------------------------------------------------------------------------------
@@ -520,6 +559,13 @@ SettingsTab:CreateToggle({Name="Auto Loot",CurrentValue=false,Flag="AutoLootFlag
     autoLootEnabled = Value
     if Value then
        startAutoLoot()
+    end
+end})
+
+SettingsTab:CreateToggle({Name="Auto Spin Wheel",CurrentValue=false,Flag="AutoSpinWhellFlag",Callback=function(Value)
+    autoSpinWheelEnabled = Value
+    if Value then
+       startAutoSpinWheel()
     end
 end})
 
