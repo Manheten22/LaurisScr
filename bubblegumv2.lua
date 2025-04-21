@@ -320,6 +320,15 @@ local quickCollect = Players.LocalPlayer.PlayerGui.ScreenGui.WorldMap.QuickColle
 	end)
 end
 
+local function startAutoLoot()
+	    task.spawn(function()
+			 while autoLootEnabled do
+
+
+		end
+	end)
+end
+
 --------------------------------------------------------------------------------
 -- UI: вкладки и элементы
 --------------------------------------------------------------------------------
@@ -355,6 +364,13 @@ SettingsTab:CreateToggle({Name="Auto Playtime",CurrentValue=false,Flag="AutoPlay
     autoPlaytimeEnabled = Value
     if Value then
        startAutoPlayTime()
+    end
+end})
+
+SettingsTab:CreateToggle({Name="Auto Loot",CurrentValue=false,Flag="AutoLootFlag",Callback=function(Value)
+    autoLootEnabled = Value
+    if Value then
+       startAutoLoot()
     end
 end})
 
