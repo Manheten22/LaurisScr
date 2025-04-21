@@ -1,5 +1,36 @@
---!strict 
--- Загрузка Rayfield и сервисов
+local function notify(title, text)
+    print("[NOTIFICATION]", title, text)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = 10
+        })
+    end)
+end
+
+if IY_LOADED and not _G.IY_DEBUG == true then
+    notify("Error", "Lauria Hub is already running!")
+    return
+end
+
+pcall(function() getgenv().IY_LOADED = true end)
+
+local cloneref = cloneref or function(o) return o end
+COREGUI = cloneref(game:GetService("CoreGui"))
+Players = cloneref(game:GetService("Players"))
+
+if not game:IsLoaded() then
+    local notLoaded = Instance.new("Message")
+    notLoaded.Parent = COREGUI
+    notLoaded.Text = "Lauria is waiting for the game to load"
+    game.Loaded:Wait()
+    notLoaded:Destroy()
+end
+
+notify("Lauria Hub", "Setup completed")
+
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -13,14 +44,25 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- Список нужных эффектов
 local effectNames = {"Light Effect", "Shine", "Stars"}
 
+local soundNames = {"ButtonPress", "ButtonRelease"}
+
 -- Папка с эффектами
 local pickupFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Particles"):WaitForChild("Pickup")
+
+local soundFolder = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("Sounds"):WaitForChild("Interface")
 
 -- Устанавливаем LifeTime = NumberRange.new(0, 0) для каждого эффекта
 for _, name in ipairs(effectNames) do
     local effect = pickupFolder:FindFirstChild(name)
     if effect and effect:IsA("ParticleEmitter") then
         effect.Lifetime = NumberRange.new(0, 0)
+    end
+end
+
+for _, name in ipairs(soundNames) do
+    local sound = pickupFolder:FindFirstChild(name)
+    if sound and sound:IsA("Sound") then
+        sound.Volume = 0
     end
 end
 
@@ -364,7 +406,7 @@ local function startAutoChests()
 local quickCollect = Players.LocalPlayer.PlayerGui.ScreenGui.WorldMap.QuickCollect.Button
 	    task.spawn(function()
 			 while AutoChestsEnabled do
-				print("quick collect")
+				--print("quick collect")
 				quickCollect:SetAttribute("Pressed", true)
 				task.wait(0.1)
 				quickCollect:SetAttribute("Pressed", false)
@@ -393,11 +435,6 @@ local function startAutoLoot()
                             if #meshParts > 0 then
                                 local mesh = meshParts[1]
                                 model.PrimaryPart = mesh
-                                
-                                -- Эмуляция взаимодействия
-                                mesh.CanCollide = true
-                                mesh.CanCollide = false
-                                
                                 -- Отправка событий и очистка
                                 CollectPickup:FireServer(model.Name)
                                 CollectPickup:FireServer(model.PrimaryPart.Position)
