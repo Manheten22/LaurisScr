@@ -24,6 +24,13 @@ for _, name in ipairs(effectNames) do
     end
 end
 
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:FindFirstChild("HumanoidRootPart")
+if not hrp then
+    warn("[PickupDebug] HumanoidRootPart не найден в персонаже!")
+    return
+end
 
 
 local CollectPickup = ReplicatedStorage.Remotes.Pickups:WaitForChild("CollectPickup")
@@ -399,7 +406,8 @@ local function startAutoLoot()
                                    -- debugLog("Эмуляция касания выполнена: " .. model.Name)
                                     CollectPickup:FireServer(model.Name)
                                     CollectPickup:FireServer(model.PrimaryPart.Position)
-                                    mesh.Transparency = 1
+                                    task.wait(0.1)
+                                    model:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0, -8, 0))
                                 end
                             end
                         end
