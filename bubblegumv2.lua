@@ -226,45 +226,80 @@ local hud = Players.LocalPlayer.PlayerGui.ScreenGui.HUD
 
 local function startAutoPlayTime()
     task.spawn(function()
-        local playtimeUI = Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("ScreenGui"):WaitForChild("Playtime")
-        local gui = playtimeUI:WaitForChild("Frame"):WaitForChild("Main")
-        
-        while autoPlaytimeEnabled do
-            for i = 1, 9 do
-                if not autoPlaytimeEnabled then break end
-                local slot = gui:FindFirstChild(tostring(i))
-                local button = slot and slot:FindFirstChild("Button")
-                
-                if button and button:IsA("ImageButton") then
-                    if button.Label.Text == "Open" then
-                        -- Эмуляция нажатия кнопки через событие
-                        local success, err = pcall(function()
-							button:SetAttribute("Pressed", true)
-							task.wait(0.1)
-							button:SetAttribute("Pressed", false)
-							playtime.Visible = false
-							task.wait(0.1)
-							spinner.Visible = false
-							hud.Visible = true
-							spinner.Skip.Button:SetAttribute("Pressed", true)
-							task.wait(0.1)
-							spinner.Skip.Button:SetAttribute("Pressed", false)
+        print("[AutoPlayTime] Запуск автоматического просмотра playtime")
+        local playtime = Players.LocalPlayer.PlayerGui.ScreenGui.Playtime
+        local spinner  = Players.LocalPlayer.PlayerGui.ScreenGui.Spinner
+        local hud      = Players.LocalPlayer.PlayerGui.ScreenGui.HUD
+        local gui      = playtime.Frame.Main
 
-							-- Начинаем цикл проверки видимости Playtime
-							repeat
-								task.wait() -- Ожидание следующего кадра для уменьшения нагрузки
-							until playtime.Visible == true
-							
-                        end)
-                        
-                        if not success then
-                            warn("Ошибка при нажатии кнопки:", err)
-                        end
-                    end
+        while autoPlaytimeEnabled do
+            print("[AutoPlayTime] Новый цикл проверки слотов")
+
+            -- пробегаем по слотам 1–9
+            for i = 1, 9 do
+                if not autoPlaytimeEnabled then
+                    print("[AutoPlayTime] Отключено, выходим")
+                    return
                 end
-                task.wait(1)
+
+                local slot = gui:FindFirstChild(tostring(i))
+                if not slot or not slot:FindFirstChild("Completed") then
+                  --  print(string.format("[AutoPlayTime] Слот %d не найден или нет Completed", i))
+                    continue
+                end
+
+                -- проверяем, что слот ещё не открыт
+                if slot.Completed.Visible then
+                 --   print(string.format("[AutoPlayTime] Слот %d уже открыт, пропускаем", i))
+                    continue
+                end
+
+                -- проверяем, что кнопка и её Label == "Open"
+                local button = slot:FindFirstChild("Button")
+                local label  = button and button:FindFirstChild("Label")
+                if not (button and button:IsA("ImageButton") and label and label.Text == "Open") then
+                  --  print(string.format("[AutoPlayTime] В слоте %d нет кнопки Open или текст не соответствует", i))
+                    continue
+                end
+
+                -- Открываем слот
+                print(string.format("[AutoPlayTime] Открываем слот %d", i))
+                local success, err = pcall(function()
+                    button:SetAttribute("Pressed", true)
+                    task.wait(0.1)
+                    button:SetAttribute("Pressed", false)
+
+					if spinner.Visible then
+						spinner.Visible  = false
+						hud.Visible      = true
+					end
+
+                    spinner.Skip.Button:SetAttribute("Pressed", true)
+                    task.wait(0.1)
+                    spinner.Skip.Button:SetAttribute("Pressed", false)
+					task.wait(0.5)
+					playtime:GetPropertyChangedSignal("Visible"):Wait()
+					if playtime.Visible then
+						playtime.Visible = false
+						spinner.Visible  = false
+						hud.Visible      = true
+						--print("[AutoPlayTime] Playtime снова появился — сразу скрыт, новый цикл")
+					end
+                end)
+                if success then
+                   -- print(string.format("[AutoPlayTime] Слот %d успешно открыт", i))
+                else
+                    warn(string.format("[AutoPlayTime] Ошибка при открытии слота %d: %s", i, err))
+                end
+
+                break  -- выходим из for, сразу переходим к следующему циклу
             end
+
+            -- простой таймаут перед новой проверкой
+            task.wait(1)
         end
+
+       -- print("[AutoPlayTime] Автоматический просмотр playtime остановлен")
     end)
 end
 
