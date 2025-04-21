@@ -233,7 +233,7 @@ local function startAutoPlayTime()
         local gui      = playtime.Frame.Main
 
         while autoPlaytimeEnabled do
-            print("[AutoPlayTime] Новый цикл проверки слотов")
+           -- print("[AutoPlayTime] Новый цикл проверки слотов")
 
             -- пробегаем по слотам 1–9
             for i = 1, 9 do
@@ -273,7 +273,7 @@ local function startAutoPlayTime()
 						spinner.Visible  = false
 						hud.Visible      = true
 					end
-
+					task.wait(0.1)
                     spinner.Skip.Button:SetAttribute("Pressed", true)
                     task.wait(0.1)
                     spinner.Skip.Button:SetAttribute("Pressed", false)
@@ -281,6 +281,10 @@ local function startAutoPlayTime()
 					playtime:GetPropertyChangedSignal("Visible"):Wait()
 					if playtime.Visible then
 						playtime.Visible = false
+						local close_btn = playtime.Frame.Top.Close.Button
+						close_btn:SetAttribute("Pressed", true)
+						task.wait(0.1)
+						close_btn:SetAttribute("Pressed", false)
 						spinner.Visible  = false
 						hud.Visible      = true
 						--print("[AutoPlayTime] Playtime снова появился — сразу скрыт, новый цикл")
@@ -303,6 +307,17 @@ local function startAutoPlayTime()
     end)
 end
 
+local function startAutoChests()
+local quickCollect = Players.LocalPlayer.PlayerGui.ScreenGui.WorldMap.QuickCollect.Button
+	    task.spawn(function()
+			 while AutoChestsEnabled do
+				quickCollect:SetAttribute("Pressed", true)
+				task.wait(0.1)
+				quickCollect:SetAttribute("Pressed", false)
+			task.wait(1)
+		end
+	end)
+end
 
 --------------------------------------------------------------------------------
 -- UI: вкладки и элементы
@@ -327,8 +342,12 @@ end})
 
 local SettingsTab = Window:CreateTab("Settings","cog")
 SettingsTab:CreateSection("Settings")
-SettingsTab:CreateToggle({Name="Auto Chest",CurrentValue=false,Flag="AutoChestFlag",Callback=function()
 
+SettingsTab:CreateToggle({Name="Auto Chest",CurrentValue=false,Flag="AutoChestFlag",Callback=function(Value)
+    AutoChestsEnabled = Value
+    if Value then
+       startAutoChests()
+    end
 end})
 
 SettingsTab:CreateToggle({Name="Auto Playtime",CurrentValue=false,Flag="AutoPlaytimeFlag",Callback=function(Value)
