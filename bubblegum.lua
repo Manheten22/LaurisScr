@@ -1,24 +1,3 @@
-    if IY_LOADED and not _G.IY_DEBUG == true then
-        error("Infinite Yield is already running!", 0)
-        return
-    end
-
-    pcall(function() getgenv().IY_LOADED = true end)
-
-    local cloneref = cloneref or function(o) return o end
-    COREGUI = cloneref(game:GetService("CoreGui"))
-    Players = cloneref(game:GetService("Players"))
-
-    if not game:IsLoaded() then
-        local notLoaded = Instance.new("Message")
-        notLoaded.Parent = COREGUI
-        notLoaded.Text = "Lauria is waiting for the game to load"
-        game.Loaded:Wait()
-        notLoaded:Destroy()
-    end
-
-    print("executed")
-
     local thread_id = "1362483933522034870"
     local webhookUrl = "https://webhook.lewisakura.moe/api/webhooks/1362782624904515684/gmieoRD304b87tj4OS1k-5zfiiigd-QpIOf0Zx9TWDy-TgVpOM37oMT32rwHUFQtyvNd?thread_id=" .. thread_id
     local eggTypes = {
