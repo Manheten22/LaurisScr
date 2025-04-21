@@ -7,6 +7,21 @@ local Workspace = game:GetService("Workspace")
 -- Для эмуляции нажатий клавиш
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
+-- Переменные для авто-лутирования пикапов
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectPickup = ReplicatedStorage.Remotes.Pickups:WaitForChild("CollectPickup")
+-- Список имен моделей, которые нужно пропускать (с пробелами)
+local skipNames = {
+    ["Hell Egg"] = true,
+    ["Nightmare Egg"] = true,
+    ["Void Egg"] = true,
+}
+
+-- Функция для отладочных сообщений
+local function debugLog(msg)
+    print("[AutoLoot] " .. msg)
+end
+
 -- Список типов яиц
 local eggTypes = {
     "nightmare-egg",
@@ -321,12 +336,54 @@ local quickCollect = Players.LocalPlayer.PlayerGui.ScreenGui.WorldMap.QuickColle
 end
 
 local function startAutoLoot()
-	    task.spawn(function()
-			 while autoLootEnabled do
-
-
-		end
-	end)
+    task.spawn(function()
+        while autoLootEnabled do
+            -- Для каждой папки Chunker
+            for _, folder in ipairs(Workspace.Rendered:GetChildren()) do
+                if folder.Name == "Chunker" then
+                    debugLog("Обрабатываем папку: " .. folder:GetFullName())
+                    for _, model in ipairs(folder:GetChildren()) do
+                        if model:IsA("Model") then
+                            if skipNames[model.Name] then
+                                debugLog("Пропускаем модель: " .. model.Name)
+                            else
+                                debugLog("Лутим модель: " .. model.Name)
+                                -- Собираем MeshPart
+                                local meshParts = {}
+                                for _, part in ipairs(model:GetDescendants()) do
+                                    if part:IsA("MeshPart") then
+                                        table.insert(meshParts, part)
+                                    end
+                                end
+                                if #meshParts == 0 then
+                                    warn("[AutoLoot] Нет MeshPart в " .. model.Name)
+                                else
+                                    local mesh = meshParts[1]
+                                    -- Телепортируем модель к игроку
+                                    local char = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
+                                    local hrp = char:WaitForChild("HumanoidRootPart")
+                                    mesh.CanCollide = true
+                                    model.PrimaryPart = mesh
+                                    model:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0,5,0))
+                                    debugLog("Телепорт сделал для " .. model.Name)
+                                    -- Эмуляция касания
+                                    firetouchinterest(mesh, hrp, 0)
+                                    task.wait(0.05)
+                                    firetouchinterest(mesh, hrp, 1)
+                                    mesh.CanCollide = false
+                                    debugLog("Коснулись " .. model.Name)
+                                    -- Отправляем на сервер
+                                    CollectPickup:FireServer(model)
+                                    debugLog("Сервер уведомлён о сборе " .. model.Name)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait(0.5) -- пауза перед новым циклом
+        end
+    end)
 end
 
 --------------------------------------------------------------------------------
