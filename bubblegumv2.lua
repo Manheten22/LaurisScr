@@ -60,7 +60,7 @@ for _, name in ipairs(effectNames) do
 end
 
 for _, name in ipairs(soundNames) do
-    local sound = pickupFolder:FindFirstChild(name)
+    local sound = soundFolder:FindFirstChild(name)
     if sound and sound:IsA("Sound") then
         sound.Volume = 0
     end
