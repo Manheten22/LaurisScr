@@ -311,6 +311,7 @@ local function startAutoChests()
 local quickCollect = Players.LocalPlayer.PlayerGui.ScreenGui.WorldMap.QuickCollect.Button
 	    task.spawn(function()
 			 while AutoChestsEnabled do
+				print("quick collect")
 				quickCollect:SetAttribute("Pressed", true)
 				task.wait(0.1)
 				quickCollect:SetAttribute("Pressed", false)
