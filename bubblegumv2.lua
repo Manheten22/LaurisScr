@@ -376,48 +376,42 @@ end
 local function startAutoLoot()
     task.spawn(function()
         while autoLootEnabled do
-            -- Для каждой папки Chunker
             for _, folder in ipairs(Workspace.Rendered:GetChildren()) do
                 if folder.Name == "Chunker" then
-                    --debugLog("Обрабатываем папку: " .. folder:GetFullName())
                     for _, model in ipairs(folder:GetChildren()) do
-                        if model:IsA("Model") then
-                            if skipNames[model.Name] then
-                              --  debugLog("Пропускаем модель: " .. model.Name)
-                            else
-                               -- debugLog("Лутим модель: " .. model.Name)
-                                -- Собираем MeshPart
-                                local meshParts = {}
-                                for _, part in ipairs(model:GetDescendants()) do
-                                    if part:IsA("MeshPart") then
-                                        table.insert(meshParts, part)
-                                    end
+                        if model:IsA("Model") and not skipNames[model.Name] then
+                            local meshParts = {}
+                            
+                            -- Сбор всех MeshPart
+                            for _, part in ipairs(model:GetDescendants()) do
+                                if part:IsA("MeshPart") then
+                                    table.insert(meshParts, part)
                                 end
-                                if #meshParts == 0 then
-                                    warn("[AutoLoot] Нет MeshPart в " .. model.Name)
-                                else
-                                    local mesh = meshParts[1]
-                                   -- debugLog("Используем MeshPart: " .. mesh.Name)
-                                        -- Телепорт модели
-                                    model.PrimaryPart = mesh
-                                -- Эмуляция касания
-                                    mesh.CanCollide = true
-                                    mesh.CanCollide = false
-                                   -- debugLog("Эмуляция касания выполнена: " .. model.Name)
-                                    CollectPickup:FireServer(model.Name)
-                                    CollectPickup:FireServer(model.PrimaryPart.Position)
-                                    task.wait(0.1)
-                                    model:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0, -8, 0))
-                                end
+                            end
+
+                            -- Обработка только если есть MeshPart
+                            if #meshParts > 0 then
+                                local mesh = meshParts[1]
+                                model.PrimaryPart = mesh
+                                
+                                -- Эмуляция взаимодействия
+                                mesh.CanCollide = true
+                                mesh.CanCollide = false
+                                
+                                -- Отправка событий и очистка
+                                CollectPickup:FireServer(model.Name)
+                                CollectPickup:FireServer(model.PrimaryPart.Position)
+                                model:ClearAllChildren()
                             end
                         end
                     end
                 end
             end
-            task.wait(0.5) -- пауза перед новым циклом
+            task.wait(0.5)
         end
     end)
 end
+
 
 --------------------------------------------------------------------------------
 -- UI: вкладки и элементы
