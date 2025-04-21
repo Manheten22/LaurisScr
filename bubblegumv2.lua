@@ -177,8 +177,10 @@ local Window = Rayfield:CreateWindow(config)
 local function moveToXZ(targetXZ, onReached)
     if movementConnection then movementConnection:Disconnect(); movementConnection = nil end
     unfreezeCharacter()
+    debugLog("Moving toward: " .. tostring(targetXZ))
     movementConnection = RunService.RenderStepped:Connect(function()
         if not autofarmEnabled and not isReturning then
+            debugLog("Movement cancelled: autofarm and return disabled")
             movementConnection:Disconnect(); movementConnection = nil; return
         end
         local hrp = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -186,6 +188,7 @@ local function moveToXZ(targetXZ, onReached)
         local currentXZ = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
         local dir = Vector3.new(targetXZ.X, 0, targetXZ.Z) - currentXZ
         if dir.Magnitude < 2 then
+            debugLog("Reached target XZ: " .. tostring(targetXZ))
             movementConnection:Disconnect(); movementConnection = nil; onReached()
         else
             hrp.Velocity = dir.Unit * 25
@@ -194,19 +197,28 @@ local function moveToXZ(targetXZ, onReached)
 end
 
 local function returnToOriginalXZ()
+    debugLog("Starting return to original position")
     isReturning = true
     local hrp = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if hrp and originalPosition then
         moveToXZ(Vector3.new(originalPosition.X, 0, originalPosition.Z), function()
-            hrp.CFrame = CFrame.new(originalPosition); isReturning = false; unfreezeCharacter()
-
+            debugLog("Reached original XZ, snapping back to full position")
+            hrp.CFrame = CFrame.new(originalPosition)
+            task.wait(0.1)
+            isReturning = false
+            unfreezeCharacter()
             tapKey(Enum.KeyCode.R, 0.1)
+            debugLog("Return complete")
         end)
     else
-        isReturning = false; unfreezeCharacter()
-            tapKey(Enum.KeyCode.R, 0.1)
+        debugLog("No original position found, unfreezing and resetting")
+        isReturning = false
+        unfreezeCharacter()
+        tapKey(Enum.KeyCode.R, 0.1)
+        debugLog("Return complete (fallback)")
     end
 end
+
 
 --------------------------------------------------------------------------------
 -- Работа с яйцами
@@ -231,7 +243,7 @@ local function findBestEgg()
         if platform then
             local part = platform:FindFirstChild("Part")
             if part and part:IsA("BasePart") then
-                print(("EggPlatform.Part для %s находится в %s"):format(bestEgg.Name, tostring(part.Position)))
+               -- print(("EggPlatform.Part для %s находится в %s"):format(bestEgg.Name, tostring(part.Position)))
             end
         end
     end
@@ -282,36 +294,52 @@ end
 --------------------------------------------------------------------------------
 local function resetState() currentTargetEgg, isAtTargetPosition = nil, false end
 local function startAutofarmProcess()
+    debugLog("Autofarm process started")
     coroutine.wrap(function()
         while autofarmEnabled do
             task.wait(1)
-            if isReturning then continue end
-            local egg = findBestEgg()
-            if not egg then returnToOriginalXZ(); break end
-            if egg ~= currentTargetEgg then
-                currentTargetEgg = egg
-                local pos = getEggPosition(egg)
-                originalPosition = Players.LocalPlayer.Character.HumanoidRootPart.Position
-                local hrp = Players.LocalPlayer.Character.HumanoidRootPart
-                hrp.CFrame = CFrame.new(hrp.Position.X, SAFE_Y_LEVEL, hrp.Position.Z)
-                task.wait(0.2)
-                moveToXZ(Vector3.new(pos.X,0,pos.Z), function()
-                    teleportToPosition(CFrame.new(pos.X, pos.Y, pos.Z))
-                    isAtTargetPosition = true
-                    coroutine.wrap(function()
-                        while autofarmEnabled and isAtTargetPosition do
-                            if not currentTargetEgg or not currentTargetEgg:IsDescendantOf(Workspace) then
-                                resetState()
-                                local newEgg = findBestEgg()
-                                if newEgg then startAutofarmProcess() else returnToOriginalXZ() end
-                                return
-                            end
-                            task.wait(1)
-                        end
-                    end)()
-                end)
+            if isReturning then
+                debugLog("Currently returning, skipping this cycle")
+            else
+                debugLog("Autofarm cycle start")
+                local egg = findBestEgg()
+                if not egg then
+                    debugLog("No suitable egg found, initiating return")
+                    returnToOriginalXZ()
+                    -- сбрасываем текущее таргет-egg и ждем возврата перед новой попыткой
+                    currentTargetEgg = nil
+                    task.wait(3)
+                else
+                    debugLog("Selected egg: " .. egg.Name)
+                    if egg ~= currentTargetEgg then
+                        currentTargetEgg = egg
+                        local pos = getEggPosition(egg)
+                        originalPosition = Players.LocalPlayer.Character.HumanoidRootPart.Position
+                        debugLog("Teleporting out of sight to safe height")
+                        local hrp = Players.LocalPlayer.Character.HumanoidRootPart
+                        hrp.CFrame = CFrame.new(hrp.Position.X, SAFE_Y_LEVEL, hrp.Position.Z)
+                        task.wait(0.2)
+                        debugLog("Moving to egg position: " .. tostring(pos))
+                        moveToXZ(Vector3.new(pos.X,0,pos.Z), function()
+                            debugLog("Teleporting to egg: " .. egg.Name)
+                            teleportToPosition(CFrame.new(pos.X, pos.Y, pos.Z))
+                            isAtTargetPosition = true
+                            coroutine.wrap(function()
+                                while autofarmEnabled and isAtTargetPosition do
+                                    if not currentTargetEgg or not currentTargetEgg:IsDescendantOf(Workspace) then
+                                        debugLog("Egg collected or disappeared, resetting state")
+                                        resetState()
+                                        break
+                                    end
+                                    task.wait(1)
+                                end
+                            end)()
+                        end)
+                    end
+                end
             end
         end
+        debugLog("Autofarm process ended")
     end)()
 end
 
