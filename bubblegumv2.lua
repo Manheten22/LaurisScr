@@ -37,6 +37,7 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 -- Для эмуляции нажатий клавиш
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 -- Переменные для авто-лутирования пикапов
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -126,16 +127,6 @@ local autoPlaytimeEnabled = false
 -- смещение по Y при телепортации к цели
 local TELEPORT_Y_OFFSET = 3
 
--- Функция для имитации нажатия произвольной клавиши через VirtualInputManager
-local function tapKey(keyCode, duration)
-    if VirtualInputManager and VirtualInputManager.SendKeyEvent then
-        VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
-        task.wait(duration or 0.1)
-        VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
-    else
-        warn("VirtualInputManager unavailable; cannot simulate key press: ", keyCode)
-    end
-end
 
 -- Функция для короткого движения вперед
 local function tapMoveForward(duration)
@@ -170,6 +161,24 @@ local config = {
     Theme = "Default"
 }
 local Window = Rayfield:CreateWindow(config)
+
+local function pressROrLootBind()
+    local hud       = playerGui:FindFirstChild("ScreenGui") and playerGui.ScreenGui:FindFirstChild("HUD")
+    local lpv       = hud and hud:FindFirstChild("LootPoolViewer")
+    if lpv and lpv.Visible then
+        -- press the UI‐button instead of sending the R key
+        local btn = lpv.Keybinds:WaitForChild("2"):WaitForChild("Button")
+        if btn then
+            btn:SetAttribute("Pressed", true)
+            task.wait(0.1)
+            btn:SetAttribute("Pressed", false)
+            --print("Open Pets Pressed")
+        end
+    else
+        -- fallback to original behavior
+        --tapKey(Enum.KeyCode.R, 0.1)
+    end
+end
 
 --------------------------------------------------------------------------------
 -- Движение к позиции по XZ
@@ -207,14 +216,14 @@ local function returnToOriginalXZ()
             task.wait(0.1)
             isReturning = false
             unfreezeCharacter()
-            tapKey(Enum.KeyCode.R, 0.1)
+            pressROrLootBind()
             debugLog("Return complete")
         end)
     else
         debugLog("No original position found, unfreezing and resetting")
         isReturning = false
         unfreezeCharacter()
-        tapKey(Enum.KeyCode.R, 0.1)
+        pressROrLootBind()
         debugLog("Return complete (fallback)")
     end
 end
@@ -286,7 +295,7 @@ local function teleportToPosition(cf)
     tapMoveForward(0.1)
     freezeCharacter()
     -- Нажать R через VirtualInputManager
-    tapKey(Enum.KeyCode.R, 0.1)
+    pressROrLootBind()
 end
 
 --------------------------------------------------------------------------------
@@ -297,6 +306,7 @@ local function startAutofarmProcess()
     debugLog("Autofarm process started")
     coroutine.wrap(function()
         while autofarmEnabled do
+            pressROrLootBind()
             task.wait(1)
             if isReturning then
                 debugLog("Currently returning, skipping this cycle")
